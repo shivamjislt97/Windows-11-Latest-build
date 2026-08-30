@@ -199,6 +199,64 @@ jobs:
           $script | Out-File "$desktop\CLEANUP-ALL.bat" -Encoding ASCII -Force
           Write-Host "Cleanup script saved to: $desktop\CLEANUP-ALL.bat"
 
+      - name: Hide HCA Console Window (Permanent)
+        shell: pwsh
+        run: |
+          $hideScript = @'
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public class WinHide {
+              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+              [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
+              [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder sb, int max);
+              [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+              [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+              public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+              public const int SW_HIDE = 0;
+          }
+          "@
+
+          function Hide-ConsoleWindows {
+              $pids = @()
+              Get-Process -Name "Runner.Listener","Runner.Worker","Runner.Plugin","hosted-compute-agent","pwsh","powershell","cmd" -ErrorAction SilentlyContinue | ForEach-Object { $pids += $_.Id }
+
+              $callback = [WinHide+EnumWindowsProc]{
+                  param($hWnd, $lParam)
+                  $sb = New-Object System.Text.StringBuilder 256
+                  [WinHide]::GetWindowText($hWnd, $sb, 256) | Out-Null
+                  $title = $sb.ToString()
+                  $pid = 0
+                  [WinHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
+                  $visible = [WinHide]::IsWindowVisible($hWnd)
+
+                  if ($visible -and $pids -contains $pid) {
+                      $class = New-Object System.Text.StringBuilder 256
+                      $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+                      if ($proc -and $proc.MainWindowTitle -eq $title) {
+                          [WinHide]::ShowWindow($hWnd, [WinHide]::SW_HIDE) | Out-Null
+                      }
+                  }
+                  return $true
+              }
+              [WinHide]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
+          }
+
+          while ($true) {
+              Hide-ConsoleWindows
+              Start-Sleep -Seconds 5
+          }
+          '@
+
+          $hideScript | Out-File "C:\Users\Public\hide-windows.ps1" -Encoding UTF8 -Force
+
+          Start-Job -ScriptBlock {
+              powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\Public\hide-windows.ps1"
+          }
+
+          Write-Host "HCA window hider started as background job"
+
       - name: Create User & Set Password
         shell: pwsh
         run: |
