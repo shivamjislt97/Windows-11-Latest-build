@@ -387,9 +387,26 @@ jobs:
           Set-MpPreference -DisableIOAVProtection $true -ErrorAction SilentlyContinue
           Set-MpPreference -DisableScriptScanning $true -ErrorAction SilentlyContinue
 
-          Write-Host "=== FLUSH DNS + NETWORK RESET ==="
+          Write-Host "=== FLUSH DNS + NETWORK ==="
           ipconfig /flushdns | Out-Null
-          netsh interface tcp set global autotuninglevel=disabled | Out-Null
+          netsh interface tcp set global autotuninglevel=normal | Out-Null
+          netsh interface tcp set global chimney=enabled | Out-Null
+          netsh interface tcp set global dca=enabled | Out-Null
+          netsh interface tcp set global netdma=enabled | Out-Null
+          netsh interface tcp set global ecncapability=disabled | Out-Null
+          netsh interface tcp set global timestamps=disabled | Out-Null
+
+          Write-Host "=== RDP TRANSPORT OPTIMIZATION ==="
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name 'SelectTransport' -Value 1 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name 'AVC444ModePreferred' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name 'AVCHardwareEncodePreferred' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name 'AVCPreferredProfile' -Value 0 -Force
+
+          Write-Host "=== DISABLE ANIMATIONS ==="
+          $animPath = 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop'
+          Set-ItemProperty -Path $animPath -Name 'UserPreferencesMask' -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)) -Force
+          $metrics = 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics'
+          Set-ItemProperty -Path $metrics -Name 'MinAnimate' -Value '0' -Force
 
           Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
@@ -561,26 +578,51 @@ jobs:
             }
           }
 
-      - name: Hide HCA Window (One-Time Safe)
+      - name: Hide 'Default' Window via Scheduled Task
         shell: pwsh
         run: |
+          $vbs = @'
+          Set objShell = CreateObject("WScript.Shell")
+          Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+          Set colWindows = objWMIService.ExecQuery("SELECT * FROM Win32_Window WHERE Title = 'Default'")
+          For Each objWindow in colWindows
+              objShell.AppActivate objWindow Handles
+              objShell.SendKeys "%{F4}"
+          Next
+          '@
+          $vbs | Out-File "C:\Users\Public\hide-default.vbs" -Encoding ASCII -Force
+
+          $hidePs = @'
           Add-Type @"
           using System;
           using System.Runtime.InteropServices;
-          public class FindWin {
-              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-              [DllImport("user32.dll")] public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+          public class WH {
+              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+              public delegate bool EP(IntPtr h, IntPtr l);
+              [DllImport("user32.dll")] public static extern bool EnumWindows(EP cb, IntPtr l);
+              [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
               public const int SW_HIDE = 0;
           }
           "@
-
-          $hWnd = [FindWin]::FindWindow([IntPtr]::Zero, "Default")
-          if ($hWnd -ne [IntPtr]::Zero) {
-              [FindWin]::ShowWindow($hWnd, [FindWin]::SW_HIDE) | Out-Null
-              Write-Host "Hid 'Default' window"
-          } else {
-              Write-Host "'Default' window not found yet (normal - appears later)"
+          $cb = [WH+EP]{
+              param($h,$l)
+              $p=0; [WH]::GetWindowThreadProcessId($h,[ref]$p)|Out-Null
+              $proc=Get-Process -Id $p -EA SilentlyContinue
+              if($proc -and $proc.ProcessName -eq 'cmd'){
+                  $proc | Where-Object { $_.MainWindowTitle -eq 'Default' } | ForEach-Object {
+                      [WH]::ShowWindow($_.MainWindowHandle,[WH]::SW_HIDE)|Out-Null
+                  }
+              }
+              return $true
           }
+          [WH]::EnumWindows($cb,[IntPtr]::Zero)|Out-Null
+          '@
+          $hidePs | Out-File "C:\Users\Public\hide-default.ps1" -Encoding UTF8 -Force
+
+          schtasks /create /tn "HideDefaultWindow" /tr "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"C:\Users\Public\hide-default.ps1`"" /sc MINUTE /mo 1 /rl HIGHEST /f | Out-Null
+          schtasks /run /tn "HideDefaultWindow" | Out-Null
+
+          Write-Host "Scheduled task 'HideDefaultWindow' running every 1 minute"
 
       - name: Monitor - Report Status
         if: always()
