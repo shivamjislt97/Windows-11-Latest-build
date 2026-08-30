@@ -15,6 +15,112 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      - name: Cleanup - Free 70GB+ Storage
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'SilentlyContinue'
+          Write-Host "=== CLEANUP: Freeing disk space ==="
+          $before = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
+          Write-Host "Free space BEFORE cleanup: ${before}GB"
+
+          $paths = @(
+            "C:\Program Files\Microsoft Visual Studio",
+            "C:\Program Files (x86)\Microsoft Visual Studio",
+            "C:\Program Files (x86)\Android",
+            "C:\Android",
+            "C:\Program Files\dotnet",
+            "C:\Program Files (x86)\dotnet",
+            "C:\hostedtoolcache",
+            "C:\ghcup",
+            "C:\rtools45",
+            "C:\rtools",
+            "C:\Program Files\R",
+            "C:\Program Files\Azure Cosmos DB Emulator",
+            "C:\Program Files\LLVM",
+            "C:\Program Files\MongoDB",
+            "C:\Program Files\mongosh",
+            "C:\Program Files (x86)\Windows Kits",
+            "C:\Program Files\PostgreSQL",
+            "C:\Strawberry",
+            "C:\Program Files\OpenSSL",
+            "C:\Program Files\Unity Hub",
+            "C:\Program Files\Microsoft Service Fabric",
+            "C:\Program Files\MySQL",
+            "C:\Program Files (x86)\Microsoft SQL Server",
+            "C:\Program Files\Microsoft SQL Server",
+            "C:\Program Files\Amazon",
+            "C:\Program Files\Mozilla Firefox",
+            "C:\Program Files (x86)\WiX Toolset v3.14",
+            "C:\Program Files\CMake",
+            "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI",
+            "C:\Program Files\IIS Express",
+            "C:\Miniconda",
+            "C:\Julia",
+            "C:\Go",
+            "C:\Perl",
+            "C:\npm",
+            "C:\Program Files\nodejs",
+            "C:\Program Files\PowerShell",
+            "C:\Program Files (x86)\Microsoft\Edge",
+            "C:\Program Files\Microsoft\Edge",
+            "$env:LOCALAPPDATA\pip",
+            "$env:LOCALAPPDATA\Yarn",
+            "$env:LOCALAPPDATA\nuget",
+            "$env:LOCALAPPDATA\Go",
+            "$env:LOCALAPPDATA\Programs\Python",
+            "$env:USERPROFILE\.aws",
+            "$env:USERPROFILE\.azure",
+            "$env:USERPROFILE\.miniconda",
+            "$env:USERPROFILE\.julia",
+            "$env:USERPROFILE\.conda",
+            "$env:USERPROFILE\.nuget",
+            "$env:USERPROFILE\.android",
+            "$env:USERPROFILE\.gradle",
+            "$env:USERPROFILE\.dotnet",
+            "$env:USERPROFILE\.cargo",
+            "$env:USERPROFILE\.rustup",
+            "$env:USERPROFILE\.vscode",
+            "$env:APPDATA\npm",
+            "$env:LOCALAPPDATA\node-gyp"
+          )
+
+          $count = 0
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Write-Host "Deleting: $p"
+              Remove-Item -Path $p -Recurse -Force -ErrorAction SilentlyContinue
+              $count++
+            }
+          }
+
+          Write-Host "=== Killing heavy processes ==="
+          Get-Process -Name "vs_*","setup*","devenv*","mongod*","mysql*","postgres*","sqlservr*","OneDrive*","msedge*","MicrosoftEdge*","Teams*","Chrome*","firefox*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+          Write-Host "=== Cleaning temp files ==="
+          Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Windows\Minidump\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Windows\MEMORY.DMP" -Force -ErrorAction SilentlyContinue
+
+          Write-Host "=== Disabling hibernation ==="
+          powercfg /hibernate off
+
+          Write-Host "=== Disabling pagefile ==="
+          $cs = Get-WmiObject Win32_ComputerSystem
+          $cs.AutomaticManagedPagefile = $false
+          $cs.Put() | Out-Null
+
+          $after = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
+          $freed = [math]::Round($after - $before, 2)
+          Write-Host ""
+          Write-Host "=== CLEANUP DONE ==="
+          Write-Host "Deleted $count paths"
+          Write-Host "Free space BEFORE: ${before}GB"
+          Write-Host "Free space AFTER:  ${after}GB"
+          Write-Host "Freed: ${freed}GB"
+
       - name: Enable RDP + Aggressive Optimization
         shell: pwsh
         run: |
