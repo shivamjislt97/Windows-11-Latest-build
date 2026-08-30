@@ -53,18 +53,15 @@ jobs:
           Write-Host "=================================================="
 
           # Connection details ko run Summary page par dikhao (expand karne ki zaroorat nahi)
-          $md = @"
-## Windows RDP Connection Details
-
-| Field | Value |
-| ----- | ----- |
-| Tailscale IP | ``$ip`` |
-| Username | ``runneradmin`` |
-| Password | ``$env:RDP_PASS`` |
-
-**Connect:** Apne PC par Tailscale login karo (same account), phir Remote Desktop mein upar wali IP daalo.
-"@
-          $md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "## Windows RDP Connection Details"                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          ""                                                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "| Field | Value |"                                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "| ----- | ----- |"                                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "| Tailscale IP | ``$ip`` |"                       | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "| Username | ``runneradmin`` |"                   | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "| Password | ``$env:RDP_PASS`` |"                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          ""                                                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "Connect: Apne PC par Tailscale login karo (same account), phir Remote Desktop mein upar wali IP daalo." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Keep alive (6 hours)
         shell: powershell
