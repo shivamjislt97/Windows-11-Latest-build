@@ -471,7 +471,7 @@ jobs:
           if (Test-Path "$userDir\NTUSER.DAT") {
             Copy-Item "$userDir\NTUSER.DAT" $userHiveTemp -Force
             $loadUser = reg load "HKU\mastertech_hive" "$userHiveTemp" 2>&1
-            Write-Host "Load $u: $loadUser"
+            Write-Host "Load ${u}: $loadUser"
             $uTheme = "Registry::HKEY_USERS\mastertech_hive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
             if (-not (Test-Path $uTheme)) { New-Item -Path $uTheme -Force | Out-Null }
             Set-ItemProperty -Path $uTheme -Name 'EnableTransparency' -Value 0 -Force
@@ -488,7 +488,7 @@ jobs:
             Set-ItemProperty -Path $uAdv -Name 'TaskbarAnimations' -Value 0 -Force
             Set-ItemProperty -Path $uAdv -Name 'IconsOnly' -Value 1 -Force
             $unloadUser = reg unload "HKU\mastertech_hive" 2>&1
-            Write-Host "Unload $u: $unloadUser"
+            Write-Host "Unload ${u}: $unloadUser"
             Copy-Item $userHiveTemp "$userDir\NTUSER.DAT" -Force
             Write-Host "$u profile: dark mode + wallpaper applied"
           } else {
