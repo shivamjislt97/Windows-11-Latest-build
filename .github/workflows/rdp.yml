@@ -76,11 +76,23 @@ jobs:
           Set-ItemProperty -Path $themePath -Name 'ColorPrevalence' -Value 0 -Force
           Set-ItemProperty -Path $themePath -Name 'AppsUseLightTheme' -Value 0 -Force
           Set-ItemProperty -Path $themePath -Name 'SystemUsesLightTheme' -Value 0 -Force
-          # Set wallpaper to solid color (no wallpaper image = less bandwidth)
+          # Download lightweight wallpaper
+          $wallpaperDir = "C:\Users\Public\Pictures"
+          New-Item -ItemType Directory -Path $wallpaperDir -Force | Out-Null
+          $wallpaperFile = "$wallpaperDir\wallpaper.jpg"
+          $wallpaperUrl = "https://cdn.wallpaperhub.app/cloudcache/0/3/6/b/a/1/036ba136f0cfeea15461196787bc4876b5bd52b9.jpg"
+          try {
+            Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperFile -TimeoutSec 30
+            Write-Host "Wallpaper downloaded: $((Get-Item $wallpaperFile).Length) bytes"
+          } catch {
+            Write-Host "Wallpaper download failed, using solid color"
+            $wallpaperFile = ''
+          }
+          # Set wallpaper
           $deskPath = 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop'
-          Set-ItemProperty -Path $deskPath -Name 'Wallpaper' -Value '' -Force
+          Set-ItemProperty -Path $deskPath -Name 'Wallpaper' -Value $wallpaperFile -Force
           Set-ItemProperty -Path $deskPath -Name 'TileWallpaper' -Value 0 -Force
-          Set-ItemProperty -Path $deskPath -Name 'WallpaperStyle' -Value 0 -Force
+          Set-ItemProperty -Path $deskPath -Name 'WallpaperStyle' -Value 10 -Force
           # Disable Aero Peek and Snap
           Set-ItemProperty -Path $advPath -Name 'TaskbarSmallIcons' -Value 1 -Force
 
