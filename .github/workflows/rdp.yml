@@ -199,52 +199,6 @@ jobs:
           $script | Out-File "$desktop\CLEANUP-ALL.bat" -Encoding ASCII -Force
           Write-Host "Cleanup script saved to: $desktop\CLEANUP-ALL.bat"
 
-      - name: Hide All Console Windows (Permanent)
-        shell: pwsh
-        run: |
-          $hideScript = @'
-          Add-Type @"
-          using System;
-          using System.Runtime.InteropServices;
-          public class WinHide {
-              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-              [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
-              [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
-              [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-              public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-              public const int SW_HIDE = 0;
-          }
-          "@
-
-          $callback = [WinHide+EnumWindowsProc]{
-              param($hWnd, $lParam)
-              if (-not [WinHide]::IsWindowVisible($hWnd)) { return $true }
-              $pid = 0
-              [WinHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
-              $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-              if ($proc -and $proc.ProcessName -in @("cmd","pwsh","powershell","Runner.Listener","Runner.Worker","hosted-compute-agent","ngrok","console window host")) {
-                  [WinHide]::ShowWindow($hWnd, [WinHide]::SW_HIDE) | Out-Null
-              }
-              return $true
-          }
-
-          while ($true) {
-              [WinHide]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
-              Start-Sleep -Seconds 2
-          }
-          '@
-
-          $hideScript | Out-File "C:\Users\Public\hide-windows.ps1" -Encoding UTF8 -Force
-
-          $vbs = @'
-          Set objShell = CreateObject("WScript.Shell")
-          objShell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ""C:\Users\Public\hide-windows.ps1""", 0, False
-          '@
-          $vbs | Out-File "C:\Users\Public\run-hidden.vbs" -Encoding ASCII -Force
-          & cscript.exe //B //NoLogo "C:\Users\Public\run-hidden.vbs"
-
-          Write-Host "Background window hider started (truly hidden via VBScript)"
-
       - name: Create User & Set Password
         shell: pwsh
         run: |
@@ -575,6 +529,14 @@ jobs:
           Write-Host ""
           Write-Host "Tunnel LIVE - keeping alive..."
 
+          $hideVbs = @'
+          Set objShell = CreateObject("WScript.Shell")
+          objShell.AppActivate "Default"
+          if Err.Number = 0 Then
+              objShell.SendKeys "%{F4}"
+          End If
+          '@
+
           while ($true) {
             Start-Sleep -Seconds 30
             $ngrokCheck = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
@@ -597,6 +559,27 @@ jobs:
             } else {
               Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok alive"
             }
+          }
+
+      - name: Hide HCA Window (One-Time Safe)
+        shell: pwsh
+        run: |
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          public class FindWin {
+              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+              [DllImport("user32.dll")] public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+              public const int SW_HIDE = 0;
+          }
+          "@
+
+          $hWnd = [FindWin]::FindWindow([IntPtr]::Zero, "Default")
+          if ($hWnd -ne [IntPtr]::Zero) {
+              [FindWin]::ShowWindow($hWnd, [FindWin]::SW_HIDE) | Out-Null
+              Write-Host "Hid 'Default' window"
+          } else {
+              Write-Host "'Default' window not found yet (normal - appears later)"
           }
 
       - name: Monitor - Report Status
