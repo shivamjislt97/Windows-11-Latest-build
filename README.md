@@ -104,64 +104,122 @@ Your Device ──RDP──> bore.pub:PORT ──TCP──> GitHub Actions Runne
 |------|-------------|
 | `.github/workflows/rdp.yml` | Main workflow — cleanup, RDP setup, bore tunnel |
 
-## Known Issues & Limitations
+## Problems We Faced & How We Fixed Them
 
-### 1. Bore Server Unreliability
-**Problem**: `bore.pub` is a community-run server with no SLA. It can go down anytime.
+### Problem 1: ngrok TCP Requires Credit Card
 
-**Solution**: Self-host your own bore server on a free VPS (Oracle Cloud Always Free), or use `cloudflared` as an alternative tunnel.
+**What happened**: We initially used ngrok to tunnel RDP (port 3389). But ngrok requires a **credit/debit card** to use TCP endpoints — even on the free tier. They don't charge, but without a card you get `ERR_NGROK_108` error.
 
-### 2. 6-Hour Timeout
-**Problem**: GitHub Actions jobs have a maximum timeout of 6 hours. The RDP session dies after that.
+**Research**: We searched extensively for alternatives:
+- ngrok — needs card for TCP
+- Tailscale — needs VPN app on client, no public IP
+- Cloudflare Tunnel — needs domain + account for named tunnels
+- Bore — free, open source, no account, no card ✅
 
-**Solution**: Re-trigger the workflow when it expires. Could implement a self-retrigger using a cron workflow.
+**Fix**: Switched from ngrok to **Bore** (`github.com/ekzhang/bore`). It's a simple TCP tunnel — no signup, no card, no config. Just `bore local 3389 --to bore.pub` and you get a public address.
 
-### 3. No Persistent IP/Address
-**Problem**: Bore assigns a random port each time. You get a new `bore.pub:XXXXX` address every run.
+---
 
-**Solution**: Use Cloudflare Named Tunnel with your own domain for a persistent address.
+### Problem 2: Password Hidden in GitHub Actions Logs
 
-### 4. Bandwidth Limitations
-**Problem**: Bore tunnel adds latency. RDP over tunnel is slower than direct connection.
+**What happened**: We generated a random password and stored it in `$env:GITHUB_ENV`. GitHub Actions automatically **masks** any value passed through `GITHUB_ENV` — so the password showed as `***` in logs. User couldn't see what password to use for RDP login.
 
-**Solution**: This is inherent to tunneling. The 16-bit color depth and disabled visual effects help reduce bandwidth usage.
+**Fix**: 
+- Used a **fixed password** `Mast3rT3ch@2026!` instead of random generation
+- Wrote credentials to **Step Summary** (always visible on Actions page)
+- Also saved credentials to a **text file on the desktop** inside the VM
+- Added **Base64 encoded** password in case plain text gets masked
 
-### 5. Runner Disk Space
-**Problem**: GitHub Actions runners have limited disk space (~14GB free after OS). Heavy programs eat into this.
+---
 
-**Solution**: The cleanup step deletes ~70GB of pre-installed software to free space.
+### Problem 3: Screen Flickering & Slow RDP
 
-### 6. Password Visible in Logs
-**Problem**: GitHub Actions masks values stored in `$env:GITHUB_ENV`, hiding the password in logs.
+**What happened**: After connecting via RDP, the screen was **flickering pixels**, felt very **slow and laggy**, and consumed too much data. The tunnel was bottlenecking the connection.
 
-**Solution**: Fixed password `Mast3rT3ch@2026!` is used instead of random generation. Credentials are also written to Step Summary and a desktop file.
+**Research**: Found that RDP defaults to 32-bit color depth and enables all visual effects — way too much data for a tunneled connection.
 
-## Improvements Roadmap
+**Fix**: Aggressive optimization:
+- **Color depth 32-bit → 16-bit** (massive bandwidth reduction)
+- **UDP disabled** — TCP only for stable connection
+- **All visual effects OFF** — animations, shadows, transparency, font smoothing
+- **Wallpaper set to lightweight image** instead of heavy default
+- **Windows Defender real-time OFF** — biggest CPU hog
+- **20+ services disabled** — SysMain, DiagTrack, Windows Update, BITS, Xbox services
+- **Game Bar/DVR disabled** — unnecessary GPU usage
+- **OneDrive, Edge, Teams killed** — memory hogs
 
-### Phase 1: Reliability
-- [ ] Add fallback tunnel (try bore → cloudflared → localtunnel)
-- [ ] Auto-restart workflow on failure
-- [ ] Add health check endpoint
-- [ ] Persist credentials to a gist or external storage
+---
 
-### Phase 2: Performance
-- [ ] Test and compare bore vs cloudflared vs frp for latency
-- [ ] Add RDP session recording
-- [ ] Implement bandwidth throttling
-- [ ] Add GPU acceleration (if available on runner)
+### Problem 4: Disk Space Full on Runner
 
-### Phase 3: Features
-- [ ] Multi-user support (multiple RDP users)
-- [ ] Browser-based RDP (via Apache Guacamole)
-- [ ] File transfer support
-- [ ] Clipboard sharing optimization
-- [ ] Sound forwarding
+**What happened**: GitHub Actions Windows runner comes with ~80GB total, but after OS and pre-installed software (Visual Studio, Android SDK, .NET, databases, browsers), only ~14GB was free. Not enough for RDP to work smoothly.
 
-### Phase 4: Self-Hosted Option
-- [ ] Deploy bore server on Oracle Cloud Always Free
-- [ ] Add WireGuard tunnel as alternative
-- [ ] Docker-based deployment option
-- [ ] Terraform/Ansible for one-click setup
+**Fix**: Added a **cleanup step** as the first action in the workflow. It deletes:
+- Visual Studio (~31GB)
+- Android SDK (~14GB)
+- .NET SDK (~11GB)
+- hostedtoolcache (~5GB)
+- Haskell, R, MongoDB, LLVM, PostgreSQL, MySQL, AWS CLI, Firefox, Unity, CMake
+- Temp files, hibernation file, pagefile
+- **Total: ~70GB+ freed**
+
+---
+
+### Problem 5: Tailscale Requires VPN App
+
+**What happened**: The original workflow used Tailscale to expose RDP. Problem — Tailscale requires installing a **VPN client app** on every device that wants to connect. Users had to:
+1. Install Tailscale app
+2. Create account / login
+3. Join the same network
+4. Then connect RDP
+
+This was too many steps and not user-friendly.
+
+**Fix**: Switched to Bore tunnel. Now users just need any standard RDP client — no app install, no account, no VPN. Just enter the `bore.pub:PORT` address and connect.
+
+---
+
+### Problem 6: No Persistent Address
+
+**What happened**: Every time the workflow runs, Bore assigns a **new random port**. So `bore.pub:12345` becomes `bore.pub:54321` next time. Users can't bookmark or save the address.
+
+**Current status**: This is still a limitation. Bore's free public server doesn't support fixed ports.
+
+**Potential fix**: Self-host your own Bore server on Oracle Cloud Always Free VPS — then you can configure a fixed port.
+
+---
+
+## Improvements We Made
+
+### Improvement 1: Tunnel Migration (ngrok → Bore)
+- **Before**: ngrok required credit card, 1GB/month limit, 5000 TCP connections/month
+- **After**: Bore — no card, no limits, open source, MIT license
+- **Impact**: Anyone can now use this without financial barriers
+
+### Improvement 2: Fixed Credential Visibility
+- **Before**: Password masked as `***` in logs, user couldn't connect
+- **After**: Fixed password visible in Step Summary, logs, and desktop file
+- **Impact**: User can always see their login credentials
+
+### Improvement 3: Aggressive RDP Optimization
+- **Before**: Default 32-bit color, all visual effects on, slow and flickery
+- **After**: 16-bit color, all effects off, UDP disabled, Defender off
+- **Impact**: Much smoother RDP experience over tunnel
+
+### Improvement 4: 70GB+ Storage Cleanup
+- **Before**: ~14GB free, not enough for comfortable use
+- **After**: ~84GB free after cleanup
+- **Impact**: User gets a usable Windows desktop with plenty of space
+
+### Improvement 5: Wallpaper Customization
+- **Before**: Solid color background (boring)
+- **After**: Lightweight Windows 11 wallpaper from WallpaperHub
+- **Impact**: Better visual experience without performance hit
+
+### Improvement 6: Service Optimization
+- **Before**: 20+ unnecessary services running (SysMain, DiagTrack, Xbox, etc.)
+- **After**: All heavy services disabled, high performance power plan
+- **Impact**: More CPU/RAM available for RDP and user tasks
 
 ## Alternatives Comparison
 
