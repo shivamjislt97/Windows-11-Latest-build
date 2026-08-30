@@ -393,60 +393,59 @@ jobs:
 
           Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
-      - name: Start Cloudflare Tunnel + Show Credentials
+      - name: Start ngrok Tunnel + Show Credentials
         shell: pwsh
         run: |
           $u = "mastertech"
           $p = "Mast3rT3ch@2026!"
 
-          Write-Host "=== Downloading Cloudflared ==="
-          $cfUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-          $cfExe = "$env:TEMP\cloudflared.exe"
+          Write-Host "=== Downloading ngrok ==="
+          $ngrokZip = "$env:TEMP\ngrok.zip"
+          $ngrokExe = "$env:TEMP\ngrok.exe"
           try {
-            Invoke-WebRequest -Uri $cfUrl -OutFile $cfExe -TimeoutSec 60
-            Write-Host "Cloudflared downloaded: $((Get-Item $cfExe).Length) bytes"
+            Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $ngrokZip -TimeoutSec 60
+            Expand-Archive -Path $ngrokZip -DestinationPath $env:TEMP -Force
+            Write-Host "ngrok downloaded: $((Get-Item $ngrokExe).Length) bytes"
           } catch {
             Write-Host "Download failed: $_"
-            throw "Cannot continue without cloudflared"
+            throw "Cannot continue without ngrok"
           }
-          & $cfExe --version 2>&1 | Write-Host
+          & $ngrokExe version 2>&1 | Write-Host
 
-          Write-Host "=== Starting Cloudflare Quick Tunnel (port 3389) ==="
-          $tunnelUrl = ""
-          $cfLog = "$env:TEMP\cf-tunnel.log"
-          $cfErr = "$env:TEMP\cf-err.log"
+          Write-Host "=== Authenticating ngrok ==="
+          & $ngrokExe config add-authtoken 3Fz0A7Lz07ucwN6PWD6qJ93ULtR_3hv6fBSGSJf2m6qefyPoz 2>&1 | Write-Host
 
-          for ($attempt = 1; $attempt -le 5; $attempt++) {
-            Write-Host "Attempt $attempt - Starting cloudflared tunnel..."
-            Remove-Item $cfLog -Force -ErrorAction SilentlyContinue
-            Remove-Item $cfErr -Force -ErrorAction SilentlyContinue
-            $proc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow -PassThru -RedirectStandardOutput $cfLog -RedirectStandardError $cfErr
-            Start-Sleep -Seconds 10
+          Write-Host "=== Starting ngrok TCP tunnel (port 3389) ==="
+          $ngrokLog = "$env:TEMP\ngrok-tunnel.log"
+          Remove-Item $ngrokLog -Force -ErrorAction SilentlyContinue
+          $proc = Start-Process -FilePath $ngrokExe -ArgumentList "tcp 3389 --log=stdout --log-format=json" -NoNewWindow -PassThru -RedirectStandardOutput $ngrokLog -RedirectStandardError "$env:TEMP\ngrok-err.log"
+          Start-Sleep -Seconds 8
 
-            $output = ""
-            if (Test-Path $cfLog) { $output = Get-Content $cfLog -Raw -ErrorAction SilentlyContinue }
-            $errOutput = ""
-            if (Test-Path $cfErr) { $errOutput = Get-Content $cfErr -Raw -ErrorAction SilentlyContinue }
-
-            Write-Host "stdout: $output"
-            Write-Host "stderr: $errOutput"
-
-            $allOutput = "$output $errOutput"
-            if ($allOutput -match "https://[a-zA-Z0-9\-]+\.trycloudflare\.com") {
-              $tunnelUrl = $Matches[0]
-              Write-Host "TUNNEL OK: $tunnelUrl"
-              break
+          $tunnelAddr = ""
+          for ($attempt = 1; $attempt -le 10; $attempt++) {
+            try {
+              $api = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 5
+              foreach ($t in $api.tunnels) {
+                if ($t.public_url -match "^tcp://") {
+                  $tunnelAddr = $t.public_url -replace "^tcp://", ""
+                  break
+                }
+              }
+              if ($tunnelAddr) { break }
+            } catch {
+              Write-Host "API not ready, retrying... (attempt $attempt)"
             }
-
-            if ($proc.HasExited) {
-              Write-Host "Cloudflared exited, retrying..."
-              Start-Sleep -Seconds 3
-            }
+            Start-Sleep -Seconds 3
           }
 
-          if ([string]::IsNullOrWhiteSpace($tunnelUrl)) {
-            $tunnelUrl = "FAILED - cloudflared could not create tunnel"
+          if ([string]::IsNullOrWhiteSpace($tunnelAddr)) {
+            $logContent = ""
+            if (Test-Path $ngrokLog) { $logContent = Get-Content $ngrokLog -Raw -ErrorAction SilentlyContinue }
+            Write-Host "ngrok log: $logContent"
+            $tunnelAddr = "FAILED - could not get ngrok tunnel address"
           }
+
+          Write-Host "TUNNEL ADDRESS: $tunnelAddr"
 
           $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
           $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($p))
@@ -455,76 +454,93 @@ jobs:
           Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host "  RDP CREDENTIALS - ${freeGB}GB FREE"
           Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-          Write-Host "  TUNNEL URL  : $tunnelUrl"
-          Write-Host "  USERNAME    : $u"
-          Write-Host "  PASSWORD    : $p"
-          Write-Host "  PASSWORD B64: $passB64"
+          Write-Host "  HOST:PORT    : $tunnelAddr"
+          Write-Host "  USERNAME     : $u"
+          Write-Host "  PASSWORD     : $p"
+          Write-Host "  PASSWORD B64 : $passB64"
           Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host ""
           Write-Host "  HOW TO CONNECT:"
-          Write-Host "  1. Install cloudflared on your PC from:"
-          Write-Host "     https://github.com/cloudflare/cloudflared/releases"
-          Write-Host "  2. Run: cloudflared access rdp --hostname <HOSTNAME> --url rdp://localhost:3389"
-          Write-Host "  3. Open RDP Client -> Connect to localhost:3389"
+          Write-Host "  1. Open Remote Desktop Connection (mstsc)"
+          Write-Host "  2. Enter: $tunnelAddr"
+          Write-Host "  3. Username: $u"
+          Write-Host "  4. Password: $p"
+          Write-Host "  5. Click Connect"
+          Write-Host "  NO TOOL NEEDED - direct paste into RDP client!"
           Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host ""
 
-          $hostname = ""
-          if ($tunnelUrl -match "https://([a-zA-Z0-9\-]+)\.trycloudflare\.com") {
-            $hostname = $Matches[1]
+          $ngrokHost = ""
+          $ngrokPort = ""
+          if ($tunnelAddr -match "^([0-9a-z\.]+):(\d+)$") {
+            $ngrokHost = $Matches[1]
+            $ngrokPort = $Matches[2]
           }
 
           @"
           ## RDP Connection Details
           | Field | Value |
           |-------|-------|
-          | Tunnel URL | ``$tunnelUrl`` |
-          | Hostname | ``$hostname`` |
+          | Host:Port | ``$tunnelAddr`` |
           | Username | ``$u`` |
           | Password | ``$p`` |
           | Password B64 | ``$passB64`` |
+          | Free Space | ``${freeGB}GB`` |
 
-          ### How to Connect
-          1. Download cloudflared: https://github.com/cloudflare/cloudflared/releases
-          2. Run: ``cloudflared access rdp --hostname $hostname --url rdp://localhost:3389``
-          3. Open RDP Client -> Connect to ``localhost:3389``
+          ### How to Connect (No tool needed!)
+          1. Open **Remote Desktop Connection** (mstsc.exe)
+          2. Enter: ``$tunnelAddr``
+          3. Username: ``$u``
+          4. Password: ``$p``
+          5. Click **Connect**
+
+          > Direct paste into RDP client. No cloudflared, no SSH, no extra tool!
+          > ngrok free plan: 1 GB data/month, ~1-2 hours RDP.
           "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
 
           $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
           @"
           RDP LOGIN CREDENTIALS
           ======================
-          Tunnel URL : $tunnelUrl
-          Hostname   : $hostname
-          Username   : $u
-          Password   : $p
-          Pass B64   : $passB64
+          Host:Port : $tunnelAddr
+          Username  : $u
+          Password  : $p
+          Pass B64  : $passB64
 
           HOW TO CONNECT:
-          1. Install cloudflared from:
-             https://github.com/cloudflare/cloudflared/releases
-          2. Run: cloudflared access rdp --hostname $hostname --url rdp://localhost:3389
-          3. Open RDP Client -> Connect to localhost:3389
+          1. Open Remote Desktop Connection (mstsc)
+          2. Enter: $tunnelAddr
+          3. Username: $u
+          4. Password: $p
+          5. Click Connect
+          NO TOOL NEEDED!
           ======================
           "@ | Out-File $credFile -Encoding UTF8 -Force
 
           Write-Host "Credentials saved to Step Summary + Desktop"
           Write-Host ""
-          Write-Host "Tunnel LIVE - keeping alive 6 hours..."
+          Write-Host "Tunnel LIVE - keeping alive..."
 
           while ($true) {
             Start-Sleep -Seconds 30
             if ($proc.HasExited) {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') Cloudflared died, restarting..."
-              Remove-Item $cfLog -Force -ErrorAction SilentlyContinue
-              Remove-Item $cfErr -Force -ErrorAction SilentlyContinue
-              $proc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow -PassThru -RedirectStandardOutput $cfLog -RedirectStandardError $cfErr
-              Start-Sleep -Seconds 10
-              $newOutput = ""
-              if (Test-Path $cfLog) { $newOutput = Get-Content $cfLog -Raw -ErrorAction SilentlyContinue }
-              Write-Host "Restart output: $newOutput"
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok died, restarting..."
+              Remove-Item $ngrokLog -Force -ErrorAction SilentlyContinue
+              $proc = Start-Process -FilePath $ngrokExe -ArgumentList "tcp 3389 --log=stdout --log-format=json" -NoNewWindow -PassThru -RedirectStandardOutput $ngrokLog -RedirectStandardError "$env:TEMP\ngrok-err.log"
+              Start-Sleep -Seconds 8
+              try {
+                $api = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 5
+                foreach ($t in $api.tunnels) {
+                  if ($t.public_url -match "^tcp://") {
+                    Write-Host "NEW ADDRESS: $($t.public_url -replace '^tcp://', '')"
+                    break
+                  }
+                }
+              } catch {
+                Write-Host "Could not get new address"
+              }
             } else {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') Tunnel alive (PID: $($proc.Id))"
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok alive (PID: $($proc.Id))"
             }
           }
 
@@ -535,10 +551,10 @@ jobs:
           $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
           Write-Host "=== Monitor ==="
           Write-Host "Run: $runUrl"
-          $cfProc = Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue
-          if ($cfProc) {
-            Write-Host "Cloudflared: RUNNING (PID: $($cfProc.Id))"
+          $ngrokProc = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+          if ($ngrokProc) {
+            Write-Host "ngrok: RUNNING (PID: $($ngrokProc.Id))"
           } else {
-            Write-Host "Cloudflared: NOT RUNNING"
+            Write-Host "ngrok: NOT RUNNING"
           }
-          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Username: ``mastertech```n- Password: ``Mast3rT3ch@2026!``n- Tunnel: Cloudflare Quick Tunnel" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
+          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Username: ``mastertech```n- Password: ``Mast3rT3ch@2026!``n- Tunnel: ngrok TCP (free plan, 1GB/month)" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
