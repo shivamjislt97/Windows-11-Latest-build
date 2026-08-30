@@ -5,10 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: rdp-tunnel
-  cancel-in-progress: true
-
 jobs:
   rdp:
     runs-on: windows-latest
@@ -71,244 +67,107 @@ jobs:
           echo [STARTING CLEANUP...]
           echo.
 
-          :: ============================================================
-          :: PART 1: HEAVY PROGRAMS
-          :: ============================================================
-
           echo [1/28] Deleting Microsoft Visual Studio...
           if exist "C:\Program Files\Microsoft Visual Studio" (
               rd /s /q "C:\Program Files\Microsoft Visual Studio" 2>nul
               echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [2/28] Deleting Android SDK...
-          if exist "C:\Program Files (x86)\Android" (
-              rd /s /q "C:\Program Files (x86)\Android" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
-          if exist "C:\Android" (
-              rd /s /q "C:\Android" 2>nul
-              echo        C:\Android [DELETED]
-          )
+          if exist "C:\Program Files (x86)\Android" ( rd /s /q "C:\Program Files (x86)\Android" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
+          if exist "C:\Android" ( rd /s /q "C:\Android" 2>nul & echo        C:\Android [DELETED] )
 
           echo.
           echo [3/28] Deleting dotnet SDK...
-          if exist "C:\Program Files\dotnet" (
-              rd /s /q "C:\Program Files\dotnet" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
-          if exist "C:\Program Files (x86)\dotnet" (
-              rd /s /q "C:\Program Files (x86)\dotnet" 2>nul
-              echo        (x86) [DELETED]
-          )
+          if exist "C:\Program Files\dotnet" ( rd /s /q "C:\Program Files\dotnet" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
+          if exist "C:\Program Files (x86)\dotnet" ( rd /s /q "C:\Program Files (x86)\dotnet" 2>nul & echo        (x86) [DELETED] )
 
           echo.
           echo [4/28] Deleting GitHub hostedtoolcache...
-          if exist "C:\hostedtoolcache" (
-              rd /s /q "C:\hostedtoolcache" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\hostedtoolcache" ( rd /s /q "C:\hostedtoolcache" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [5/28] Deleting ghcup (Haskell)...
-          if exist "C:\ghcup" (
-              rd /s /q "C:\ghcup" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\ghcup" ( rd /s /q "C:\ghcup" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [6/28] Deleting rtools45 (R)...
-          if exist "C:\rtools45" (
-              rd /s /q "C:\rtools45" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
-          if exist "C:\Program Files\R" (
-              rd /s /q "C:\Program Files\R" 2>nul
-              echo        Program Files\R [DELETED]
-          )
+          if exist "C:\rtools45" ( rd /s /q "C:\rtools45" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
+          if exist "C:\Program Files\R" ( rd /s /q "C:\Program Files\R" 2>nul & echo        Program Files\R [DELETED] )
 
           echo.
           echo [7/28] Deleting Azure Cosmos DB Emulator...
-          if exist "C:\Program Files\Azure Cosmos DB Emulator" (
-              rd /s /q "C:\Program Files\Azure Cosmos DB Emulator" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Azure Cosmos DB Emulator" ( rd /s /q "C:\Program Files\Azure Cosmos DB Emulator" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [8/28] Deleting LLVM...
-          if exist "C:\Program Files\LLVM" (
-              rd /s /q "C:\Program Files\LLVM" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\LLVM" ( rd /s /q "C:\Program Files\LLVM" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [9/28] Deleting MongoDB...
-          if exist "C:\Program Files\MongoDB" (
-              rd /s /q "C:\Program Files\MongoDB" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
-          if exist "C:\Program Files\mongosh" (
-              rd /s /q "C:\Program Files\mongosh" 2>nul
-              echo        mongosh [DELETED]
-          )
-
-          :: ============================================================
-          :: PART 2: ADDITIONAL PROGRAMS
-          :: ============================================================
+          if exist "C:\Program Files\MongoDB" ( rd /s /q "C:\Program Files\MongoDB" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
+          if exist "C:\Program Files\mongosh" ( rd /s /q "C:\Program Files\mongosh" 2>nul & echo        mongosh [DELETED] )
 
           echo.
           echo [10/28] Deleting Windows SDK...
-          if exist "C:\Program Files (x86)\Windows Kits\10" (
-              rd /s /q "C:\Program Files (x86)\Windows Kits\10" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files (x86)\Windows Kits\10" ( rd /s /q "C:\Program Files (x86)\Windows Kits\10" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [11/28] Deleting PostgreSQL 17...
-          if exist "C:\Program Files\PostgreSQL" (
-              rd /s /q "C:\Program Files\PostgreSQL" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\PostgreSQL" ( rd /s /q "C:\Program Files\PostgreSQL" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [12/28] Deleting Strawberry Perl...
-          if exist "C:\Strawberry" (
-              rd /s /q "C:\Strawberry" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Strawberry" ( rd /s /q "C:\Strawberry" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [13/28] Deleting OpenSSL...
-          if exist "C:\Program Files\OpenSSL" (
-              rd /s /q "C:\Program Files\OpenSSL" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\OpenSSL" ( rd /s /q "C:\Program Files\OpenSSL" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [14/28] Deleting Unity Hub...
-          if exist "C:\Program Files\Unity Hub" (
-              rd /s /q "C:\Program Files\Unity Hub" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Unity Hub" ( rd /s /q "C:\Program Files\Unity Hub" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [15/28] Deleting Microsoft Azure Service Fabric...
-          if exist "C:\Program Files\Microsoft Service Fabric" (
-              rd /s /q "C:\Program Files\Microsoft Service Fabric" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Microsoft Service Fabric" ( rd /s /q "C:\Program Files\Microsoft Service Fabric" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [16/28] Deleting MySQL Server 8.0...
-          if exist "C:\Program Files\MySQL" (
-              rd /s /q "C:\Program Files\MySQL" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\MySQL" ( rd /s /q "C:\Program Files\MySQL" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [17/28] Deleting SQL Server Integration Services...
-          if exist "C:\Program Files (x86)\Microsoft SQL Server" (
-              rd /s /q "C:\Program Files (x86)\Microsoft SQL Server" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files (x86)\Microsoft SQL Server" ( rd /s /q "C:\Program Files (x86)\Microsoft SQL Server" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [18/28] Deleting AWS SAM CLI...
-          if exist "C:\Program Files\Amazon" (
-              rd /s /q "C:\Program Files\Amazon" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Amazon" ( rd /s /q "C:\Program Files\Amazon" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [19/28] Deleting Mozilla Firefox...
-          if exist "C:\Program Files\Mozilla Firefox" (
-              rd /s /q "C:\Program Files\Mozilla Firefox" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Mozilla Firefox" ( rd /s /q "C:\Program Files\Mozilla Firefox" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [20/28] Deleting SQL Server 2025 LocalDB...
-          if exist "C:\Program Files\Microsoft SQL Server" (
-              rd /s /q "C:\Program Files\Microsoft SQL Server" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Microsoft SQL Server" ( rd /s /q "C:\Program Files\Microsoft SQL Server" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [21/28] Deleting WiX Toolset v3.14...
-          if exist "C:\Program Files (x86)\WiX Toolset v3.14" (
-              rd /s /q "C:\Program Files (x86)\WiX Toolset v3.14" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files (x86)\WiX Toolset v3.14" ( rd /s /q "C:\Program Files (x86)\WiX Toolset v3.14" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [22/28] Deleting AWS CLI v2...
-          if exist "C:\Program Files\Amazon\AWSCLI" (
-              rd /s /q "C:\Program Files\Amazon\AWSCLI" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\Amazon\AWSCLI" ( rd /s /q "C:\Program Files\Amazon\AWSCLI" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [23/28] Deleting R for Windows...
-          if exist "C:\Program Files\R" (
-              rd /s /q "C:\Program Files\R" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\R" ( rd /s /q "C:\Program Files\R" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [24/28] Deleting CMake...
-          if exist "C:\Program Files\CMake" (
-              rd /s /q "C:\Program Files\CMake" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\CMake" ( rd /s /q "C:\Program Files\CMake" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [25/28] Windows SDK (10.0.26100.7705)...
@@ -316,12 +175,7 @@ jobs:
 
           echo.
           echo [26/28] Deleting ImageMagick...
-          if exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" (
-              rd /s /q "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" ( rd /s /q "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
           echo.
           echo [27/28] Azure Service Fabric SDK...
@@ -329,22 +183,12 @@ jobs:
 
           echo.
           echo [28/28] Deleting IIS 10.0 Express...
-          if exist "C:\Program Files\IIS Express" (
-              rd /s /q "C:\Program Files\IIS Express" 2>nul
-              echo        [DELETED]
-          ) else (
-              echo        [NOT FOUND - SKIPPED]
-          )
+          if exist "C:\Program Files\IIS Express" ( rd /s /q "C:\Program Files\IIS Express" 2>nul & echo        [DELETED] ) else ( echo        [NOT FOUND - SKIPPED] )
 
-          :: ============================================================
-          :: CLEANUP COMPLETE
-          :: ============================================================
           echo.
           echo ============================================================
           echo   CLEANUP COMPLETE! ALL 28 ITEMS PROCESSED.
           echo ============================================================
-          echo.
-          echo   Checking free space...
           echo.
           for /f "tokens=2 delims==" %%a in ('wmic logicaldisk where "DeviceID='C:'" get FreeSpace /value ^| findstr "="') do set /a "freeGB=%%a / 1073741824"
           echo   C: Drive Free Space: %freeGB% GB
@@ -431,7 +275,7 @@ jobs:
             $wallpaperFile = ''
           }
 
-          Write-Host "=== APPLY DARK MODE TO DEFAULT PROFILE (for all new users) ==="
+          Write-Host "=== APPLY DARK MODE TO DEFAULT PROFILE ==="
           $defaultSrc = "C:\Users\Default\NTUSER.DAT"
           $defaultTemp = "$env:TEMP\default_NTUSER.DAT"
           if (Test-Path $defaultSrc) {
@@ -461,9 +305,9 @@ jobs:
             Write-Host "Default NTUSER.DAT not found!"
           }
 
-          Write-Host "=== APPLY DARK MODE TO $u PROFILE ==="
+          Write-Host "=== APPLY DARK MODE TO mastertech PROFILE ==="
           $userDir = "C:\Users\$u"
-          $userHiveTemp = "$env:TEMP\${u}_NTUSER.DAT"
+          $userHiveTemp = "$env:TEMP\mastertech_NTUSER.DAT"
           New-Item -ItemType Directory -Path $userDir -Force | Out-Null
           if (-not (Test-Path "$userDir\NTUSER.DAT")) {
             Copy-Item $defaultTemp "$userDir\NTUSER.DAT" -Force
@@ -471,7 +315,7 @@ jobs:
           if (Test-Path "$userDir\NTUSER.DAT") {
             Copy-Item "$userDir\NTUSER.DAT" $userHiveTemp -Force
             $loadUser = reg load "HKU\mastertech_hive" "$userHiveTemp" 2>&1
-            Write-Host "Load ${u}: $loadUser"
+            Write-Host "Load mastertech: $loadUser"
             $uTheme = "Registry::HKEY_USERS\mastertech_hive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
             if (-not (Test-Path $uTheme)) { New-Item -Path $uTheme -Force | Out-Null }
             Set-ItemProperty -Path $uTheme -Name 'EnableTransparency' -Value 0 -Force
@@ -488,23 +332,27 @@ jobs:
             Set-ItemProperty -Path $uAdv -Name 'TaskbarAnimations' -Value 0 -Force
             Set-ItemProperty -Path $uAdv -Name 'IconsOnly' -Value 1 -Force
             $unloadUser = reg unload "HKU\mastertech_hive" 2>&1
-            Write-Host "Unload ${u}: $unloadUser"
+            Write-Host "Unload mastertech: $unloadUser"
             Copy-Item $userHiveTemp "$userDir\NTUSER.DAT" -Force
-            Write-Host "$u profile: dark mode + wallpaper applied"
+            Write-Host "mastertech profile: dark mode + wallpaper applied"
           } else {
-            Write-Host "$u NTUSER.DAT not available"
+            Write-Host "mastertech NTUSER.DAT not available"
           }
 
-          Write-Host "=== ALSO SET VIA RUNONCE (backup method) ==="
+          Write-Host "=== SET RUNONCE DARK MODE (backup for first login) ==="
           $runOncePath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
           $psScript = "C:\Users\Public\apply-darkmode.ps1"
-          $psContent = @"
+          $wp = $wallpaperFile
+          @"
+          `$ErrorActionPreference = 'SilentlyContinue'
+          Start-Sleep -Seconds 5
           Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme' -Value 0 -Force
           Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'SystemUsesLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'Wallpaper' -Value '$wallpaperFile' -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'Wallpaper' -Value '$wp' -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'TileWallpaper' -Value 0 -Force
           Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'WallpaperStyle' -Value 10 -Force
-          "@
-          $psContent | Out-File $psScript -Encoding UTF8 -Force
+          RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
+          "@ | Out-File $psScript -Encoding UTF8 -Force
           New-ItemProperty -Path $runOncePath -Name 'ApplyDarkMode' -Value "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$psScript`"" -PropertyType String -Force | Out-Null
           Write-Host "RunOnce entry created for first login"
 
@@ -545,105 +393,118 @@ jobs:
 
           Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
-      - name: Download & Start Bore Tunnel + Show Credentials
+      - name: Start Cloudflare Tunnel + Show Credentials
         shell: pwsh
         run: |
           $u = "mastertech"
           $p = "Mast3rT3ch@2026!"
 
-          Write-Host "=== Downloading Bore ==="
+          Write-Host "=== Downloading Cloudflared ==="
+          $cfUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+          $cfExe = "$env:TEMP\cloudflared.exe"
           try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -TimeoutSec 15
-            $asset = $release.assets | Where-Object { $_.name -match "windows.*x86_64" -or $_.name -match "windows.*amd64" } | Select-Object -First 1
-            if ($asset) {
-              Write-Host "Downloading: $($asset.browser_download_url)"
-              Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
-            } else {
-              Write-Host "No Windows asset found, trying direct URL..."
-              Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip" -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
-            }
+            Invoke-WebRequest -Uri $cfUrl -OutFile $cfExe -TimeoutSec 60
+            Write-Host "Cloudflared downloaded: $((Get-Item $cfExe).Length) bytes"
           } catch {
-            Write-Host "Release API failed, trying direct download..."
-            Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip" -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
+            Write-Host "Download failed: $_"
+            throw "Cannot continue without cloudflared"
           }
-          Expand-Archive -Path "$env:TEMP\bore.zip" -DestinationPath "$env:TEMP\bore" -Force
-          $boreExe = Get-ChildItem -Path "$env:TEMP\bore" -Filter "bore.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $boreExe) { $boreExe = "$env:TEMP\bore.exe" }
-          Write-Host "Bore exe: $boreExe"
-          & $boreExe --version 2>&1 | Write-Host
+          & $cfExe --version 2>&1 | Write-Host
 
-          Write-Host "=== Starting Bore Tunnel (port 3389) ==="
-          $boreAddress = ""
-          $boreLog = "$env:TEMP\bore-tunnel.log"
-          $boreErr = "$env:TEMP\bore-err.log"
+          Write-Host "=== Starting Cloudflare Quick Tunnel (port 3389) ==="
+          $tunnelUrl = ""
+          $cfLog = "$env:TEMP\cf-tunnel.log"
+          $cfErr = "$env:TEMP\cf-err.log"
 
-          for ($attempt = 1; $attempt -le 10; $attempt++) {
-            Write-Host "Attempt $attempt - Starting bore..."
-            Remove-Item $boreLog -Force -ErrorAction SilentlyContinue
-            Remove-Item $boreErr -Force -ErrorAction SilentlyContinue
-            $proc = Start-Process -FilePath $boreExe -ArgumentList "local 3389 --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError $boreErr
-            Start-Sleep -Seconds 8
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            Write-Host "Attempt $attempt - Starting cloudflared tunnel..."
+            Remove-Item $cfLog -Force -ErrorAction SilentlyContinue
+            Remove-Item $cfErr -Force -ErrorAction SilentlyContinue
+            $proc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow -PassThru -RedirectStandardOutput $cfLog -RedirectStandardError $cfErr
+            Start-Sleep -Seconds 10
 
             $output = ""
-            if (Test-Path $boreLog) { $output = Get-Content $boreLog -Raw -ErrorAction SilentlyContinue }
+            if (Test-Path $cfLog) { $output = Get-Content $cfLog -Raw -ErrorAction SilentlyContinue }
             $errOutput = ""
-            if (Test-Path $boreErr) { $errOutput = Get-Content $boreErr -Raw -ErrorAction SilentlyContinue }
+            if (Test-Path $cfErr) { $errOutput = Get-Content $cfErr -Raw -ErrorAction SilentlyContinue }
 
             Write-Host "stdout: $output"
             Write-Host "stderr: $errOutput"
 
             $allOutput = "$output $errOutput"
-            if ($allOutput -match "bore\.pub:(\d+)") {
-              $borePort = $Matches[1]
-              $boreAddress = "bore.pub:$borePort"
-              Write-Host "TUNNEL OK: $boreAddress"
+            if ($allOutput -match "https://[a-zA-Z0-9\-]+\.trycloudflare\.com") {
+              $tunnelUrl = $Matches[0]
+              Write-Host "TUNNEL OK: $tunnelUrl"
               break
             }
 
             if ($proc.HasExited) {
-              Write-Host "Bore exited, retrying..."
+              Write-Host "Cloudflared exited, retrying..."
               Start-Sleep -Seconds 3
             }
           }
 
-          if ([string]::IsNullOrWhiteSpace($boreAddress)) {
-            $boreAddress = "FAILED - bore.pub server may be down"
+          if ([string]::IsNullOrWhiteSpace($tunnelUrl)) {
+            $tunnelUrl = "FAILED - cloudflared could not create tunnel"
           }
 
           $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
           $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($p))
 
           Write-Host ""
-          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host "  RDP CREDENTIALS - ${freeGB}GB FREE"
-          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-          Write-Host "  ADDRESS  : $boreAddress"
-          Write-Host "  USERNAME : $u"
-          Write-Host "  PASSWORD : $p"
-          Write-Host "  PASS B64 : $passB64"
-          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "  TUNNEL URL  : $tunnelUrl"
+          Write-Host "  USERNAME    : $u"
+          Write-Host "  PASSWORD    : $p"
+          Write-Host "  PASSWORD B64: $passB64"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host ""
+          Write-Host "  HOW TO CONNECT:"
+          Write-Host "  1. Install cloudflared on your PC from:"
+          Write-Host "     https://github.com/cloudflare/cloudflared/releases"
+          Write-Host "  2. Run: cloudflared access rdp --hostname <HOSTNAME> --url rdp://localhost:3389"
+          Write-Host "  3. Open RDP Client -> Connect to localhost:3389"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host ""
 
-          # Write to Step Summary (visible on Actions page)
+          $hostname = ""
+          if ($tunnelUrl -match "https://([a-zA-Z0-9\-]+)\.trycloudflare\.com") {
+            $hostname = $Matches[1]
+          }
+
           @"
           ## RDP Connection Details
           | Field | Value |
           |-------|-------|
-          | Address | ``$boreAddress`` |
+          | Tunnel URL | ``$tunnelUrl`` |
+          | Hostname | ``$hostname`` |
           | Username | ``$u`` |
           | Password | ``$p`` |
           | Password B64 | ``$passB64`` |
+
+          ### How to Connect
+          1. Download cloudflared: https://github.com/cloudflare/cloudflared/releases
+          2. Run: ``cloudflared access rdp --hostname $hostname --url rdp://localhost:3389``
+          3. Open RDP Client -> Connect to ``localhost:3389``
           "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
 
-          # Save to desktop file
           $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
           @"
           RDP LOGIN CREDENTIALS
           ======================
-          Address  : $boreAddress
-          Username : $u
-          Password : $p
-          Pass B64 : $passB64
+          Tunnel URL : $tunnelUrl
+          Hostname   : $hostname
+          Username   : $u
+          Password   : $p
+          Pass B64   : $passB64
+
+          HOW TO CONNECT:
+          1. Install cloudflared from:
+             https://github.com/cloudflare/cloudflared/releases
+          2. Run: cloudflared access rdp --hostname $hostname --url rdp://localhost:3389
+          3. Open RDP Client -> Connect to localhost:3389
           ======================
           "@ | Out-File $credFile -Encoding UTF8 -Force
 
@@ -654,13 +515,13 @@ jobs:
           while ($true) {
             Start-Sleep -Seconds 30
             if ($proc.HasExited) {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') Bore died, restarting..."
-              Remove-Item $boreLog -Force -ErrorAction SilentlyContinue
-              Remove-Item $boreErr -Force -ErrorAction SilentlyContinue
-              $proc = Start-Process -FilePath $boreExe -ArgumentList "local 3389 --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError $boreErr
-              Start-Sleep -Seconds 8
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') Cloudflared died, restarting..."
+              Remove-Item $cfLog -Force -ErrorAction SilentlyContinue
+              Remove-Item $cfErr -Force -ErrorAction SilentlyContinue
+              $proc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow -PassThru -RedirectStandardOutput $cfLog -RedirectStandardError $cfErr
+              Start-Sleep -Seconds 10
               $newOutput = ""
-              if (Test-Path $boreLog) { $newOutput = Get-Content $boreLog -Raw -ErrorAction SilentlyContinue }
+              if (Test-Path $cfLog) { $newOutput = Get-Content $cfLog -Raw -ErrorAction SilentlyContinue }
               Write-Host "Restart output: $newOutput"
             } else {
               Write-Host "$(Get-Date -Format 'HH:mm:ss') Tunnel alive (PID: $($proc.Id))"
@@ -674,10 +535,10 @@ jobs:
           $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
           Write-Host "=== Monitor ==="
           Write-Host "Run: $runUrl"
-          $boreProc = Get-Process -Name "bore" -ErrorAction SilentlyContinue
-          if ($boreProc) {
-            Write-Host "Bore: RUNNING (PID: $($boreProc.Id))"
+          $cfProc = Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue
+          if ($cfProc) {
+            Write-Host "Cloudflared: RUNNING (PID: $($cfProc.Id))"
           } else {
-            Write-Host "Bore: NOT RUNNING"
+            Write-Host "Cloudflared: NOT RUNNING"
           }
-          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Username: ``mastertech```n- Password: ``Mast3rT3ch@2026!``" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
+          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Username: ``mastertech```n- Password: ``Mast3rT3ch@2026!``n- Tunnel: Cloudflare Quick Tunnel" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
