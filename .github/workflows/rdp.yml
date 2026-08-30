@@ -1,0 +1,44 @@
+name: Windows RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest        # 4 core / 16 GB RAM (public repo = free)
+    timeout-minutes: 360           # max 6 hours, phir machine auto-destroy
+    steps:
+      - name: Enable RDP + set random password
+        shell: powershell
+        run: |
+          # Random strong password generate karo
+          Add-Type -AssemblyName System.Web
+          $pass = [System.Web.Security.Membership]::GeneratePassword(16, 4)
+          net user runneradmin "$pass"
+
+          # RDP enable karo
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+          Write-Host "=================================================="
+          Write-Host "RDP Username : runneradmin"
+          Write-Host "RDP Password : $pass"
+          Write-Host "=================================================="
+
+      - name: Setup ngrok + start tunnel
+        shell: powershell
+        run: |
+          choco install ngrok -y
+          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          Start-Process ngrok -ArgumentList "tcp 3389 --region in"
+          Start-Sleep 15
+
+          # ngrok public address print karo
+          $info = (Invoke-WebRequest http://127.0.0.1:4040/api/tunnels).Content | ConvertFrom-Json
+          Write-Host "=================================================="
+          Write-Host "RDP Address : $($info.tunnels[0].public_url)"
+          Write-Host "=================================================="
+
+      - name: Keep alive (6 hours)
+        shell: powershell
+        run: Start-Sleep 21600
