@@ -15,39 +15,111 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Enable RDP + Full Optimization
+      - name: Enable RDP + Aggressive Optimization
         shell: pwsh
         run: |
           $ErrorActionPreference = 'SilentlyContinue'
+          Write-Host "=== ENABLING RDP ==="
           Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'ColorDepth' -Value 4
           Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -Value 0
-          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+          Write-Host "=== RDP PERFORMANCE SETTINGS ==="
+          # Low color depth = less bandwidth = smoother
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'ColorDepth' -Value 2
+          # RDP compression
+          $tsPath = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+          if (-not (Test-Path $tsPath)) { New-Item -Path $tsPath -Force | Out-Null }
+          New-ItemProperty -Path $tsPath -Name 'AVC444ModePreferred' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCHardwareEncodePreferred' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'bEnumerateHWBeforeSW' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCPreferredProfile' -Value 0 -PropertyType DWord -Force
+          # Enable RDP compression
+          New-ItemProperty -Path $tsPath -Name 'fEnableRemoteFXAdvancedRemoteApp' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'EncoderGraphicsCacheEnabled' -Value 1 -PropertyType DWord -Force
+          # Disable UDP (use TCP only = more stable)
+          New-ItemProperty -Path $tsPath -Name 'SelectTransport' -Value 1 -PropertyType DWord -Force
+          # Limit bandwidth
+          New-ItemProperty -Path $tsPath -Name 'MaxInstanceCount' -Value 99 -PropertyType DWord -Force
+          # RDP session limits
+          $rdpTcp = 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+          Set-ItemProperty -Path $rdpTcp -Name 'MaxInstanceCount' -Value 99
+
+          Write-Host "=== TCP LOW LATENCY ==="
           Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency' -Value 1
           Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TCPNoDelay' -Value 1
           Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpDelAckTicks' -Value 0
-          $tsPath = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
-          if (-not (Test-Path $tsPath)) { New-Item -Path $tsPath -Force | Out-Null }
-          New-ItemProperty -Path $tsPath -Name 'AVC444ModePreferred' -Value 1 -PropertyType DWord -Force
-          New-ItemProperty -Path $tsPath -Name 'AVCHardwareEncodePreferred' -Value 1 -PropertyType DWord -Force
-          New-ItemProperty -Path $tsPath -Name 'bEnumerateHWBeforeSW' -Value 1 -PropertyType DWord -Force
-          New-ItemProperty -Path $tsPath -Name 'AVCPreferredProfile' -Value 1 -PropertyType DWord -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name 'VisualFXSetting' -Value 2 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'TaskbarAnimations' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'ListviewShadow' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'IconsOnly' -Value 1 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'EnableTransparency' -Value 0 -Force
+
+          Write-Host "=== DISABLE FIREWALL ==="
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+          Write-Host "=== KILL HEAVY PROCESSES ==="
+          Get-Process -Name "OneDrive","MicrosoftEdge","msedge","Teams","TeamsPlaywright","Outlook" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          # Kill Windows Search indexer
+          Stop-Service -Name "WSearch" -Force -ErrorAction SilentlyContinue
+          Set-Service -Name "WSearch" -StartupType Disabled -ErrorAction SilentlyContinue
+
+          Write-Host "=== AGGRESSIVE VISUAL EFFECTS OFF ==="
+          # Set Visual Effects to "Adjust for best performance"
+          $visPath = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
+          Set-ItemProperty -Path $visPath -Name 'VisualFXSetting' -Value 2 -Force
+          # Disable ALL visual effects
+          $advPath = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+          Set-ItemProperty -Path $advPath -Name 'TaskbarAnimations' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'ListviewShadow' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'IconsOnly' -Value 1 -Force
+          Set-ItemProperty -Path $advPath -Name 'ListThreshold' -Value 1 -Force
+          Set-ItemProperty -Path $advPath -Name 'ThumbnailSize' -Value 32 -Force
+          # Disable transparency + color prevelance
+          $themePath = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          Set-ItemProperty -Path $themePath -Name 'EnableTransparency' -Value 0 -Force
+          Set-ItemProperty -Path $themePath -Name 'ColorPrevalence' -Value 0 -Force
+          Set-ItemProperty -Path $themePath -Name 'AppsUseLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $themePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+          # Set wallpaper to solid color (no wallpaper image = less bandwidth)
+          $deskPath = 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop'
+          Set-ItemProperty -Path $deskPath -Name 'Wallpaper' -Value '' -Force
+          Set-ItemProperty -Path $deskPath -Name 'TileWallpaper' -Value 0 -Force
+          Set-ItemProperty -Path $deskPath -Name 'WallpaperStyle' -Value 0 -Force
+          # Disable Aero Peek and Snap
+          Set-ItemProperty -Path $advPath -Name 'TaskbarSmallIcons' -Value 1 -Force
+
+          Write-Host "=== DISABLE HEAVY SERVICES ==="
+          $servicesToDisable = @('SysMain','DiagTrack','diagnosticshub.standardcollector.service','dmwappushservice','MapsBroker','lfsvc','SharedAccess','RemoteRegistry','XblAuthManager','XblGameSave','XboxGipSvc','wuauserv','BITS')
+          foreach ($svc in $servicesToDisable) {
+            Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $svc -StartupType Disabled -ErrorAction SilentlyContinue
+          }
+
+          Write-Host "=== DISABLE PREFETCH/SUPERFETCH ==="
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnablePrefetcher' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnableSuperfetch' -Value 0 -Force
+
+          Write-Host "=== HIGH PERFORMANCE POWER ==="
           powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
           powercfg /change monitor-timeout-ac 0
           powercfg /change standby-timeout-ac 0
-          Stop-Service -Name SysMain -Force
-          Set-Service -Name SysMain -StartupType Disabled
-          Stop-Service -Name DiagTrack -Force
-          Set-Service -Name DiagTrack -StartupType Disabled
-          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnablePrefetcher' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnableSuperfetch' -Value 0 -Force
-          Write-Host "RDP + Full Optimization DONE!"
+          powercfg /change hibernate-timeout-ac 0
+
+          Write-Host "=== DISABLE GAME BAR / DVR ==="
+          $gamePath = 'Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR'
+          if (-not (Test-Path $gamePath)) { New-Item -Path $gamePath -Force | Out-Null }
+          New-ItemProperty -Path $gamePath -Name 'AppCaptureEnabled' -Value 0 -PropertyType DWord -Force
+          $gameBarPath = 'Registry::HKEY_CURRENT_USER\System\GameConfigStore'
+          if (-not (Test-Path $gameBarPath)) { New-Item -Path $gameBarPath -Force | Out-Null }
+          New-ItemProperty -Path $gameBarPath -Name 'GameDVR_Enabled' -Value 0 -PropertyType DWord -Force
+
+          Write-Host "=== DISABLE WINDOWS DEFENDER REAL-TIME ==="
+          Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
+          Set-MpPreference -DisableBehaviorMonitoring $true -ErrorAction SilentlyContinue
+          Set-MpPreference -DisableIOAVProtection $true -ErrorAction SilentlyContinue
+          Set-MpPreference -DisableScriptScanning $true -ErrorAction SilentlyContinue
+
+          Write-Host "=== FLUSH DNS + NETWORK RESET ==="
+          ipconfig /flushdns | Out-Null
+          netsh interface tcp set global autotuninglevel=disabled | Out-Null
+
+          Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
       - name: Create User & Set Password
         shell: pwsh
