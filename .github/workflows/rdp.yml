@@ -53,125 +53,131 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'SilentlyContinue'
-          $newUser = "mastertech"
-          Add-Type -AssemblyName System.Web
-          $pass = [System.Web.Security.Membership]::GeneratePassword(16, 4)
-          $secpassword = ConvertTo-SecureString -AsPlainText $pass -Force
-          New-LocalUser -Name $newUser -Password $secpassword -FullName $newUser -Description "RDP User" -ErrorAction SilentlyContinue
-          Add-LocalGroupMember -Group "Administrators" -Member $newUser -ErrorAction SilentlyContinue
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member $newUser -ErrorAction SilentlyContinue
+          $u = "mastertech"
+          $p = "Mast3rT3ch@2026!"
+          $secpassword = ConvertTo-SecureString -AsPlainText $p -Force
+          New-LocalUser -Name $u -Password $secpassword -FullName $u -Description "RDP User" -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Administrators" -Member $u -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member $u -ErrorAction SilentlyContinue
           Set-LocalUser -Name "runneradmin" -Password $secpassword
-          Write-Host "User '$newUser' created!"
-          "RDP_PASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "User created: $u"
 
-      - name: Download & Start Bore Tunnel
+      - name: Download & Start Bore Tunnel + Show Credentials
         shell: pwsh
         run: |
-          $sig = '[DllImport("kernel32.dll")] public static extern bool SetConsoleTitleW(string title);'
-          Add-Type -MemberDefinition $sig -Name ConsoleAPI -Namespace Native -PassThru
-          [Native.ConsoleAPI]::SetConsoleTitleW("DO NOT CLOSE - Bore RDP Tunnel")
+          $u = "mastertech"
+          $p = "Mast3rT3ch@2026!"
 
           Write-Host "=== Downloading Bore ==="
-          $boreUrl = "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip"
-          Invoke-WebRequest -Uri $boreUrl -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
-          Expand-Archive -Path "$env:TEMP\bore.zip" -DestinationPath "$env:TEMP\bore" -Force
-          $boreExe = "$env:TEMP\bore\bore.exe"
-          if (-not (Test-Path $boreExe)) {
-            $boreExe = Get-ChildItem -Path "$env:TEMP\bore" -Filter "bore.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          try {
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -TimeoutSec 15
+            $asset = $release.assets | Where-Object { $_.name -match "windows.*x86_64" -or $_.name -match "windows.*amd64" } | Select-Object -First 1
+            if ($asset) {
+              Write-Host "Downloading: $($asset.browser_download_url)"
+              Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
+            } else {
+              Write-Host "No Windows asset found, trying direct URL..."
+              Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip" -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
+            }
+          } catch {
+            Write-Host "Release API failed, trying direct download..."
+            Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip" -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
           }
+          Expand-Archive -Path "$env:TEMP\bore.zip" -DestinationPath "$env:TEMP\bore" -Force
+          $boreExe = Get-ChildItem -Path "$env:TEMP\bore" -Filter "bore.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $boreExe) { $boreExe = "$env:TEMP\bore.exe" }
           Write-Host "Bore exe: $boreExe"
           & $boreExe --version 2>&1 | Write-Host
-          Write-Host "=== Bore download DONE ==="
 
           Write-Host "=== Starting Bore Tunnel (port 3389) ==="
-          $rdpPort = 3389
-          $rdpUser = "mastertech"
-          $rdpPass = $env:RDP_PASS
-          if ([string]::IsNullOrWhiteSpace($rdpPass)) { $rdpPass = "mastertech" }
-
           $boreAddress = ""
           $boreLog = "$env:TEMP\bore-tunnel.log"
+          $boreErr = "$env:TEMP\bore-err.log"
 
-          for ($attempt = 1; $attempt -le 5; $attempt++) {
+          for ($attempt = 1; $attempt -le 10; $attempt++) {
             Write-Host "Attempt $attempt - Starting bore..."
-            $proc = Start-Process -FilePath $boreExe -ArgumentList "local $rdpPort --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError "$env:TEMP\bore-err.log"
-            Start-Sleep -Seconds 5
+            Remove-Item $boreLog -Force -ErrorAction SilentlyContinue
+            Remove-Item $boreErr -Force -ErrorAction SilentlyContinue
+            $proc = Start-Process -FilePath $boreExe -ArgumentList "local 3389 --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError $boreErr
+            Start-Sleep -Seconds 8
 
             $output = ""
             if (Test-Path $boreLog) { $output = Get-Content $boreLog -Raw -ErrorAction SilentlyContinue }
             $errOutput = ""
-            if (Test-Path "$env:TEMP\bore-err.log") { $errOutput = Get-Content "$env:TEMP\bore-err.log" -Raw -ErrorAction SilentlyContinue }
+            if (Test-Path $boreErr) { $errOutput = Get-Content $boreErr -Raw -ErrorAction SilentlyContinue }
 
-            Write-Host "Bore stdout: $output"
-            Write-Host "Bore stderr: $errOutput"
+            Write-Host "stdout: $output"
+            Write-Host "stderr: $errOutput"
 
             $allOutput = "$output $errOutput"
             if ($allOutput -match "bore\.pub:(\d+)") {
               $borePort = $Matches[1]
               $boreAddress = "bore.pub:$borePort"
-              Write-Host "Tunnel established: $boreAddress"
+              Write-Host "TUNNEL OK: $boreAddress"
               break
             }
 
             if ($proc.HasExited) {
-              Write-Host "Bore exited early, restarting..."
+              Write-Host "Bore exited, retrying..."
               Start-Sleep -Seconds 3
-            } else {
-              Write-Host "Waiting for bore output..."
-              Start-Sleep -Seconds 5
             }
           }
 
           if ([string]::IsNullOrWhiteSpace($boreAddress)) {
-            $boreAddress = "FAILED - Could not establish bore tunnel. Check bore.pub server status."
+            $boreAddress = "FAILED - bore.pub server may be down"
           }
 
           $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-          $userSpaced = ($rdpUser.ToCharArray() -join ' ')
-          $passSpaced = ($rdpPass.ToCharArray() -join ' ')
-          $userB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpUser))
-          $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpPass))
+          $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($p))
 
           Write-Host ""
-          Write-Host "============================================"
-          Write-Host "  RDP READY - ${freeGB}GB FREE!"
-          Write-Host "============================================"
-          Write-Host "  Address:  $boreAddress"
-          Write-Host "  Username: $rdpUser"
-          Write-Host "  Password: $rdpPass"
-          Write-Host "============================================"
-          Write-Host "  UNMASKED LOGIN (remove spaces):"
-          Write-Host "  Username: $userSpaced"
-          Write-Host "  Password: $passSpaced"
-          Write-Host "  Username B64: $userB64"
-          Write-Host "  Password B64: $passB64"
-          Write-Host "============================================"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "  RDP CREDENTIALS - ${freeGB}GB FREE"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "  ADDRESS  : $boreAddress"
+          Write-Host "  USERNAME : $u"
+          Write-Host "  PASSWORD : $p"
+          Write-Host "  PASS B64 : $passB64"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host ""
 
-          $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
-          @("============================================","  RDP LOGIN CREDENTIALS","============================================","  Address:  $boreAddress","  Username: $rdpUser","  Password: $rdpPass","  Username (spaced): $userSpaced","  Password (spaced): $passSpaced","  Username B64: $userB64","  Password B64: $passB64","============================================") | Out-File $credFile -Encoding UTF8 -Force
-
+          # Write to Step Summary (visible on Actions page)
           @"
-          ## RDP Credentials
-          - **Address:** ``$boreAddress``
-          - **Username:** ``$rdpUser``
-          - **Password:** ``$rdpPass``
-          - **Username (spaced):** ``$userSpaced``
-          - **Password (spaced):** ``$passSpaced``
+          ## RDP Connection Details
+          | Field | Value |
+          |-------|-------|
+          | Address | ``$boreAddress`` |
+          | Username | ``$u`` |
+          | Password | ``$p`` |
+          | Password B64 | ``$passB64`` |
           "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
 
-          Write-Host "Credentials saved to Desktop + Step Summary"
+          # Save to desktop file
+          $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
+          @"
+          RDP LOGIN CREDENTIALS
+          ======================
+          Address  : $boreAddress
+          Username : $u
+          Password : $p
+          Pass B64 : $passB64
+          ======================
+          "@ | Out-File $credFile -Encoding UTF8 -Force
+
+          Write-Host "Credentials saved to Step Summary + Desktop"
           Write-Host ""
           Write-Host "Tunnel LIVE - keeping alive 6 hours..."
 
           while ($true) {
             Start-Sleep -Seconds 30
             if ($proc.HasExited) {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') Bore process died, restarting..."
-              $proc = Start-Process -FilePath $boreExe -ArgumentList "local $rdpPort --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError "$env:TEMP\bore-err.log"
-              Start-Sleep -Seconds 5
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') Bore died, restarting..."
+              Remove-Item $boreLog -Force -ErrorAction SilentlyContinue
+              Remove-Item $boreErr -Force -ErrorAction SilentlyContinue
+              $proc = Start-Process -FilePath $boreExe -ArgumentList "local 3389 --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError $boreErr
+              Start-Sleep -Seconds 8
               $newOutput = ""
-              if (Test-Path $boreLog) { $newOutput = Get-Content $boreLog -Tail 5 -ErrorAction SilentlyContinue }
+              if (Test-Path $boreLog) { $newOutput = Get-Content $boreLog -Raw -ErrorAction SilentlyContinue }
               Write-Host "Restart output: $newOutput"
             } else {
               Write-Host "$(Get-Date -Format 'HH:mm:ss') Tunnel alive (PID: $($proc.Id))"
@@ -191,4 +197,4 @@ jobs:
           } else {
             Write-Host "Bore: NOT RUNNING"
           }
-          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Bore tunnel active on port 3389" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
+          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Username: ``mastertech```n- Password: ``Mast3rT3ch@2026!``" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
