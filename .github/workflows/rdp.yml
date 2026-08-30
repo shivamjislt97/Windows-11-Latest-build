@@ -15,31 +15,6 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Download & Setup Ngrok
-        shell: pwsh
-        run: |
-          Write-Host "=== Downloading ngrok ==="
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip -DestinationPath .\ngrok -Force
-          $ver = .\ngrok\ngrok.exe version 2>&1
-          Write-Host "ngrok version: $ver"
-          $token = "3GA2y6tYHMZMf4lAw8urHZbQeKL_6kaKZNHuFVrt3KJxir2vH"
-          Write-Host "Using ngrok authtoken"
-          try {
-            $h = @{ Authorization = "Bearer $token"; "Ngrok-Version" = "2" }
-            $agents = Invoke-RestMethod -Uri "https://api.ngrok.com/agents" -Headers $h -TimeoutSec 10 -ErrorAction Stop
-            foreach ($a in $agents.agents) {
-              Invoke-RestMethod -Uri "https://api.ngrok.com/agents/$($a.id)" -Headers $h -Method Delete -ErrorAction SilentlyContinue | Out-Null
-              Write-Host "Killed old agent $($a.id)"
-            }
-          } catch { Write-Host "Agent cleanup: no old agents or API not available" }
-          Write-Host "Authtoken length: $($token.Length) chars"
-          $configDir = "$env:LOCALAPPDATA\ngrok"
-          New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-          "version: 2`nauthtoken: $token" | Out-File "$configDir\ngrok.yml" -Encoding UTF8 -Force
-          .\ngrok\ngrok.exe authtoken $token 2>&1 | Write-Host
-          Write-Host "=== ngrok setup DONE ==="
-
       - name: Enable RDP + Full Optimization
         shell: pwsh
         run: |
@@ -89,41 +64,79 @@ jobs:
           Write-Host "User '$newUser' created!"
           "RDP_PASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Start RDP Tunnel + Show Details
+      - name: Download & Start Bore Tunnel
         shell: pwsh
         run: |
           $sig = '[DllImport("kernel32.dll")] public static extern bool SetConsoleTitleW(string title);'
           Add-Type -MemberDefinition $sig -Name ConsoleAPI -Namespace Native -PassThru
-          [Native.ConsoleAPI]::SetConsoleTitleW("DO NOT CLOSE - RDP Tunnel Service")
-          Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 2
-          Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
-          $rdpUrl = ""
-          for ($i = 1; $i -le 15; $i++) {
-            Start-Sleep -Seconds 2
-            try {
-              $tunnel = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 3
-              $tcpTunnel = $tunnel.tunnels | Where-Object { $_.public_url -match "tcp://" } | Select-Object -First 1
-              if ($tcpTunnel) { $rdpUrl = $tcpTunnel.public_url -replace "tcp://",""; break }
-            } catch {}
-            if (-not (Get-Process -Name ngrok -ErrorAction SilentlyContinue)) {
-              Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
-            }
+          [Native.ConsoleAPI]::SetConsoleTitleW("DO NOT CLOSE - Bore RDP Tunnel")
+
+          Write-Host "=== Downloading Bore ==="
+          $boreUrl = "https://github.com/ekzhang/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-pc-windows-msvc.zip"
+          Invoke-WebRequest -Uri $boreUrl -OutFile "$env:TEMP\bore.zip" -TimeoutSec 60
+          Expand-Archive -Path "$env:TEMP\bore.zip" -DestinationPath "$env:TEMP\bore" -Force
+          $boreExe = "$env:TEMP\bore\bore.exe"
+          if (-not (Test-Path $boreExe)) {
+            $boreExe = Get-ChildItem -Path "$env:TEMP\bore" -Filter "bore.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
           }
+          Write-Host "Bore exe: $boreExe"
+          & $boreExe --version 2>&1 | Write-Host
+          Write-Host "=== Bore download DONE ==="
+
+          Write-Host "=== Starting Bore Tunnel (port 3389) ==="
+          $rdpPort = 3389
           $rdpUser = "mastertech"
           $rdpPass = $env:RDP_PASS
           if ([string]::IsNullOrWhiteSpace($rdpPass)) { $rdpPass = "mastertech" }
+
+          $boreAddress = ""
+          $boreLog = "$env:TEMP\bore-tunnel.log"
+
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            Write-Host "Attempt $attempt - Starting bore..."
+            $proc = Start-Process -FilePath $boreExe -ArgumentList "local $rdpPort --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError "$env:TEMP\bore-err.log"
+            Start-Sleep -Seconds 5
+
+            $output = ""
+            if (Test-Path $boreLog) { $output = Get-Content $boreLog -Raw -ErrorAction SilentlyContinue }
+            $errOutput = ""
+            if (Test-Path "$env:TEMP\bore-err.log") { $errOutput = Get-Content "$env:TEMP\bore-err.log" -Raw -ErrorAction SilentlyContinue }
+
+            Write-Host "Bore stdout: $output"
+            Write-Host "Bore stderr: $errOutput"
+
+            $allOutput = "$output $errOutput"
+            if ($allOutput -match "bore\.pub:(\d+)") {
+              $borePort = $Matches[1]
+              $boreAddress = "bore.pub:$borePort"
+              Write-Host "Tunnel established: $boreAddress"
+              break
+            }
+
+            if ($proc.HasExited) {
+              Write-Host "Bore exited early, restarting..."
+              Start-Sleep -Seconds 3
+            } else {
+              Write-Host "Waiting for bore output..."
+              Start-Sleep -Seconds 5
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($boreAddress)) {
+            $boreAddress = "FAILED - Could not establish bore tunnel. Check bore.pub server status."
+          }
+
+          $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
           $userSpaced = ($rdpUser.ToCharArray() -join ' ')
           $passSpaced = ($rdpPass.ToCharArray() -join ' ')
           $userB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpUser))
           $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpPass))
-          $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-          if ([string]::IsNullOrWhiteSpace($rdpUrl)) { $rdpUrl = "FAILED - Ngrok limit hit or token invalid." }
+
           Write-Host ""
           Write-Host "============================================"
           Write-Host "  RDP READY - ${freeGB}GB FREE!"
           Write-Host "============================================"
-          Write-Host "  Address:  $rdpUrl"
+          Write-Host "  Address:  $boreAddress"
           Write-Host "  Username: $rdpUser"
           Write-Host "  Password: $rdpPass"
           Write-Host "============================================"
@@ -134,25 +147,34 @@ jobs:
           Write-Host "  Password B64: $passB64"
           Write-Host "============================================"
           Write-Host ""
+
           $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
-          @("============================================","  RDP LOGIN CREDENTIALS","============================================","  Address:  $rdpUrl","  Username: $rdpUser","  Password: $rdpPass","  Username (spaced): $userSpaced","  Password (spaced): $passSpaced","  Username B64: $userB64","  Password B64: $passB64","============================================") | Out-File $credFile -Encoding UTF8 -Force
+          @("============================================","  RDP LOGIN CREDENTIALS","============================================","  Address:  $boreAddress","  Username: $rdpUser","  Password: $rdpPass","  Username (spaced): $userSpaced","  Password (spaced): $passSpaced","  Username B64: $userB64","  Password B64: $passB64","============================================") | Out-File $credFile -Encoding UTF8 -Force
+
           @"
-          ## RDP Credentials (UNMASKED)
-          - **Address:** ``$rdpUrl``
+          ## RDP Credentials
+          - **Address:** ``$boreAddress``
+          - **Username:** ``$rdpUser``
+          - **Password:** ``$rdpPass``
           - **Username (spaced):** ``$userSpaced``
           - **Password (spaced):** ``$passSpaced``
           "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
-          Write-Host "  Credentials saved to Desktop + Step Summary"
+
+          Write-Host "Credentials saved to Desktop + Step Summary"
           Write-Host ""
           Write-Host "Tunnel LIVE - keeping alive 6 hours..."
+
           while ($true) {
             Start-Sleep -Seconds 30
-            try {
-              Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 5 -ErrorAction Stop | Out-Null
-            } catch {
-              Write-Host "  ngrok restart..."
-              Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
-              Start-Sleep -Seconds 8
+            if ($proc.HasExited) {
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') Bore process died, restarting..."
+              $proc = Start-Process -FilePath $boreExe -ArgumentList "local $rdpPort --to bore.pub" -NoNewWindow -PassThru -RedirectStandardOutput $boreLog -RedirectStandardError "$env:TEMP\bore-err.log"
+              Start-Sleep -Seconds 5
+              $newOutput = ""
+              if (Test-Path $boreLog) { $newOutput = Get-Content $boreLog -Tail 5 -ErrorAction SilentlyContinue }
+              Write-Host "Restart output: $newOutput"
+            } else {
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') Tunnel alive (PID: $($proc.Id))"
             }
           }
 
@@ -163,9 +185,10 @@ jobs:
           $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
           Write-Host "=== Monitor ==="
           Write-Host "Run: $runUrl"
-          try {
-            $t = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 3 -ErrorAction Stop
-            $tcp = $t.tunnels | Where-Object { $_.public_url -match "tcp://" } | Select-Object -First 1
-            if ($tcp) { Write-Host "Tunnel: $($tcp.public_url)" }
-          } catch { Write-Host "Tunnel: N/A (ngrok not running)" }
-          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
+          $boreProc = Get-Process -Name "bore" -ErrorAction SilentlyContinue
+          if ($boreProc) {
+            Write-Host "Bore: RUNNING (PID: $($boreProc.Id))"
+          } else {
+            Write-Host "Bore: NOT RUNNING"
+          }
+          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)`n- Bore tunnel active on port 3389" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
