@@ -199,14 +199,13 @@ jobs:
           $script | Out-File "$desktop\CLEANUP-ALL.bat" -Encoding ASCII -Force
           Write-Host "Cleanup script saved to: $desktop\CLEANUP-ALL.bat"
 
-      - name: Hide HCA Console Window (Permanent)
+      - name: Hide All Console Windows (Permanent)
         shell: pwsh
         run: |
           $hideScript = @'
           Add-Type @"
           using System;
           using System.Runtime.InteropServices;
-          using System.Text;
           public class WinHide {
               [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
               [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
@@ -223,7 +222,7 @@ jobs:
               $pid = 0
               [WinHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
               $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-              if ($proc -and $proc.ProcessName -in @("cmd","pwsh","powershell","Runner.Listener","Runner.Worker","hosted-compute-agent")) {
+              if ($proc -and $proc.ProcessName -in @("cmd","pwsh","powershell","Runner.Listener","Runner.Worker","hosted-compute-agent","ngrok","console window host")) {
                   [WinHide]::ShowWindow($hWnd, [WinHide]::SW_HIDE) | Out-Null
               }
               return $true
@@ -231,15 +230,20 @@ jobs:
 
           while ($true) {
               [WinHide]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
-              Start-Sleep -Seconds 3
+              Start-Sleep -Seconds 2
           }
           '@
 
           $hideScript | Out-File "C:\Users\Public\hide-windows.ps1" -Encoding UTF8 -Force
 
-          Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"C:\Users\Public\hide-windows.ps1`"" -WindowStyle Hidden
+          $vbs = @'
+          Set objShell = CreateObject("WScript.Shell")
+          objShell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ""C:\Users\Public\hide-windows.ps1""", 0, False
+          '@
+          $vbs | Out-File "C:\Users\Public\run-hidden.vbs" -Encoding ASCII -Force
+          & cscript.exe //B //NoLogo "C:\Users\Public\run-hidden.vbs"
 
-          Write-Host "Background window hider started"
+          Write-Host "Background window hider started (truly hidden via VBScript)"
 
       - name: Create User & Set Password
         shell: pwsh
@@ -460,7 +464,15 @@ jobs:
           Write-Host "=== Starting ngrok TCP tunnel (port 3389) ==="
           $ngrokLog = "$env:TEMP\ngrok-tunnel.log"
           Remove-Item $ngrokLog -Force -ErrorAction SilentlyContinue
-          $proc = Start-Process -FilePath $ngrokExe -ArgumentList "tcp 3389 --log=stdout --log-format=json" -NoNewWindow -PassThru -RedirectStandardOutput $ngrokLog -RedirectStandardError "$env:TEMP\ngrok-err.log"
+
+          $ngrokVbs = @"
+          Set objShell = CreateObject("WScript.Shell")
+          objShell.Run """$ngrokExe"" tcp 3389 --log=stdout --log-format=json", 0, False
+          "@
+          $ngrokVbs | Out-File "C:\Users\Public\run-ngrok.vbs" -Encoding ASCII -Force
+          & cscript.exe //B //NoLogo "C:\Users\Public\run-ngrok.vbs"
+          $proc = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue | Select-Object -First 1
+
           Start-Sleep -Seconds 8
 
           $tunnelAddr = ""
@@ -565,11 +577,12 @@ jobs:
 
           while ($true) {
             Start-Sleep -Seconds 30
-            if ($proc.HasExited) {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok died, restarting..."
-              Remove-Item $ngrokLog -Force -ErrorAction SilentlyContinue
-              $proc = Start-Process -FilePath $ngrokExe -ArgumentList "tcp 3389 --log=stdout --log-format=json" -NoNewWindow -PassThru -RedirectStandardOutput $ngrokLog -RedirectStandardError "$env:TEMP\ngrok-err.log"
+            $ngrokCheck = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+            if (-not $ngrokCheck) {
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok died, restarting hidden..."
+              & cscript.exe //B //NoLogo "C:\Users\Public\run-ngrok.vbs"
               Start-Sleep -Seconds 8
+              $proc = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue | Select-Object -First 1
               try {
                 $api = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 5
                 foreach ($t in $api.tunnels) {
@@ -582,7 +595,7 @@ jobs:
                 Write-Host "Could not get new address"
               }
             } else {
-              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok alive (PID: $($proc.Id))"
+              Write-Host "$(Get-Date -Format 'HH:mm:ss') ngrok alive"
             }
           }
 
