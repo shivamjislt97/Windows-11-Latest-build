@@ -25,40 +25,28 @@ jobs:
           Write-Host "RDP Password : $pass"
           Write-Host "=================================================="
 
-      - name: Setup ngrok + start tunnel
+      - name: Install + connect Tailscale
         shell: powershell
         run: |
-          choco install ngrok -y
-          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          # Tailscale install karo
+          $msi = "$env:TEMP\tailscale.msi"
+          Invoke-WebRequest -UseBasicParsing "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi" -OutFile $msi
+          Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /quiet /norestart" -Wait
+          $ts = "C:\Program Files\Tailscale\tailscale.exe"
 
-          # ngrok ko background mein start karo, output log file mein
-          Start-Process ngrok -ArgumentList "tcp 3389 --region in --log=stdout --log-format=logfmt" -RedirectStandardOutput "$env:TEMP\ngrok.log" -RedirectStandardError "$env:TEMP\ngrok.err" -WindowStyle Hidden
+          # tailscaled service start
+          Start-Sleep 5
+          Start-Service Tailscale 2>$null
 
-          # API ready hone tak retry karo (max ~60s)
-          $public = $null
-          for ($i = 1; $i -le 20; $i++) {
-            Start-Sleep 3
-            try {
-              $info = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:4040/api/tunnels).Content | ConvertFrom-Json
-              if ($info.tunnels.Count -gt 0) {
-                $public = $info.tunnels[0].public_url
-                break
-              }
-            } catch {
-              Write-Host "Attempt $i : ngrok API abhi ready nahi..."
-            }
-          }
+          # auth key se connect (ephemeral node)
+          & $ts up --authkey="${{ secrets.TS_AUTHKEY }}" --hostname=gh-rdp-runner --accept-routes
+          Start-Sleep 5
 
-          if (-not $public) {
-            Write-Host "===== ngrok start nahi hua. Log niche: ====="
-            if (Test-Path "$env:TEMP\ngrok.log") { Get-Content "$env:TEMP\ngrok.log" }
-            if (Test-Path "$env:TEMP\ngrok.err") { Get-Content "$env:TEMP\ngrok.err" }
-            exit 1
-          }
-
+          $ip = (& $ts ip -4)
           Write-Host "=================================================="
-          Write-Host "RDP Address : $public"
-          Write-Host "(Remote Desktop mein 'tcp://' hata ke sirf host:port daalo)"
+          Write-Host "Tailscale IP : $ip"
+          Write-Host "Is IP par Remote Desktop se connect karo (aapke PC par bhi Tailscale login hona chahiye same account se)"
+          Write-Host "Username : runneradmin"
           Write-Host "=================================================="
 
       - name: Keep alive (6 hours)
