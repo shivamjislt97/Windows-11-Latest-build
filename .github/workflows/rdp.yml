@@ -354,18 +354,6 @@ jobs:
           "@
           $script | Out-File "$desktop\CLEANUP-ALL.bat" -Encoding ASCII -Force
           Write-Host "Cleanup script saved to: $desktop\CLEANUP-ALL.bat"
-          echo ============================================================
-          echo   CLEANUP COMPLETE!
-          echo ============================================================
-          echo.
-          for /f "tokens=2 delims==" %%a in ('wmic logicaldisk where "DeviceID='C:'" get FreeSpace /value ^| findstr "="') do set /a "freeGB=%%a / 1073741824"
-          echo   Free Space: %freeGB% GB
-          echo.
-          echo   Press any key to exit...
-          pause >nul
-          "@
-          $script | Out-File "$desktop\CLEANUP-70GB.bat" -Encoding ASCII -Force
-          Write-Host "Cleanup script saved to: $desktop\CLEANUP-70GB.bat"
 
       - name: Create User & Set Password
         shell: pwsh
