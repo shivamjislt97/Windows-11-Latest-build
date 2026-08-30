@@ -25,6 +25,9 @@ jobs:
           Write-Host "RDP Password : $pass"
           Write-Host "=================================================="
 
+          # Password ko next step ke liye env mein save karo
+          "RDP_PASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Install + connect Tailscale
         shell: powershell
         run: |
@@ -48,6 +51,20 @@ jobs:
           Write-Host "Is IP par Remote Desktop se connect karo (aapke PC par bhi Tailscale login hona chahiye same account se)"
           Write-Host "Username : runneradmin"
           Write-Host "=================================================="
+
+          # Connection details ko run Summary page par dikhao (expand karne ki zaroorat nahi)
+          $md = @"
+## Windows RDP Connection Details
+
+| Field | Value |
+| ----- | ----- |
+| Tailscale IP | ``$ip`` |
+| Username | ``runneradmin`` |
+| Password | ``$env:RDP_PASS`` |
+
+**Connect:** Apne PC par Tailscale login karo (same account), phir Remote Desktop mein upar wali IP daalo.
+"@
+          $md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Keep alive (6 hours)
         shell: powershell
