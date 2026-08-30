@@ -15,117 +15,111 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Cleanup - Free 70GB+ Storage
+      - name: Save Cleanup Script to Desktop
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'SilentlyContinue'
-          Write-Host "=== CLEANUP: Freeing disk space ==="
-          $before = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-          Write-Host "Free space BEFORE cleanup: ${before}GB"
+          $desktop = "$env:SystemDrive\Users\Public\Desktop"
+          $script = @"
+          @echo off
+          title SYSTEM CLEANUP - Free 70GB+ Space
+          color 0A
+          echo ============================================================
+          echo   SYSTEM CLEANUP - Run as Administrator for best results
+          echo ============================================================
+          echo.
+          echo   This will delete unused programs to free ~70GB+ space.
+          echo   Press any key to start...
+          pause >nul
+          echo.
 
-          $paths = @(
-            "C:\Program Files\Microsoft Visual Studio",
-            "C:\Program Files (x86)\Microsoft Visual Studio",
-            "C:\Program Files (x86)\Android",
-            "C:\Android",
-            "C:\Program Files\dotnet",
-            "C:\Program Files (x86)\dotnet",
-            "C:\hostedtoolcache",
-            "C:\ghcup",
-            "C:\rtools45",
-            "C:\rtools",
-            "C:\Program Files\R",
-            "C:\Program Files\Azure Cosmos DB Emulator",
-            "C:\Program Files\LLVM",
-            "C:\Program Files\MongoDB",
-            "C:\Program Files\mongosh",
-            "C:\Program Files (x86)\Windows Kits",
-            "C:\Program Files\PostgreSQL",
-            "C:\Strawberry",
-            "C:\Program Files\OpenSSL",
-            "C:\Program Files\Unity Hub",
-            "C:\Program Files\Microsoft Service Fabric",
-            "C:\Program Files\MySQL",
-            "C:\Program Files (x86)\Microsoft SQL Server",
-            "C:\Program Files\Microsoft SQL Server",
-            "C:\Program Files\Amazon",
-            "C:\Program Files\Mozilla Firefox",
-            "C:\Program Files (x86)\WiX Toolset v3.14",
-            "C:\Program Files\CMake",
-            "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI",
-            "C:\Program Files\IIS Express",
-            "C:\Miniconda",
-            "C:\Julia",
-            "C:\Go",
-            "C:\Perl",
-            "C:\npm",
-            "C:\Program Files\nodejs",
-            "C:\Program Files\PowerShell",
-            "C:\Program Files (x86)\Microsoft\Edge",
-            "C:\Program Files\Microsoft\Edge",
-            "$env:LOCALAPPDATA\pip",
-            "$env:LOCALAPPDATA\Yarn",
-            "$env:LOCALAPPDATA\nuget",
-            "$env:LOCALAPPDATA\Go",
-            "$env:LOCALAPPDATA\Programs\Python",
-            "$env:USERPROFILE\.aws",
-            "$env:USERPROFILE\.azure",
-            "$env:USERPROFILE\.miniconda",
-            "$env:USERPROFILE\.julia",
-            "$env:USERPROFILE\.conda",
-            "$env:USERPROFILE\.nuget",
-            "$env:USERPROFILE\.android",
-            "$env:USERPROFILE\.gradle",
-            "$env:USERPROFILE\.dotnet",
-            "$env:USERPROFILE\.cargo",
-            "$env:USERPROFILE\.rustup",
-            "$env:USERPROFILE\.vscode",
-            "$env:APPDATA\npm",
-            "$env:LOCALAPPDATA\node-gyp"
+          echo [1/4] Killing heavy processes...
+          taskkill /F /IM vs_* /IM setup* /IM devenv* /IM mongod* /IM mysql* /IM postgres* /IM sqlservr* /IM OneDrive* /IM msedge* /IM MicrosoftEdge* /IM Teams* /IM Chrome* /IM firefox* 2>nul
+          echo Done!
+
+          echo.
+          echo [2/4] Deleting large programs...
+          for %%D in (
+            "C:\Program Files\Microsoft Visual Studio"
+            "C:\Program Files (x86)\Microsoft Visual Studio"
+            "C:\Program Files (x86)\Android"
+            "C:\Android"
+            "C:\Program Files\dotnet"
+            "C:\Program Files (x86)\dotnet"
+            "C:\hostedtoolcache"
+            "C:\ghcup"
+            "C:\rtools45"
+            "C:\rtools"
+            "C:\Program Files\R"
+            "C:\Program Files\Azure Cosmos DB Emulator"
+            "C:\Program Files\LLVM"
+            "C:\Program Files\MongoDB"
+            "C:\Program Files\mongosh"
+            "C:\Program Files (x86)\Windows Kits"
+            "C:\Program Files\PostgreSQL"
+            "C:\Strawberry"
+            "C:\Program Files\OpenSSL"
+            "C:\Program Files\Unity Hub"
+            "C:\Program Files\Microsoft Service Fabric"
+            "C:\Program Files\MySQL"
+            "C:\Program Files (x86)\Microsoft SQL Server"
+            "C:\Program Files\Microsoft SQL Server"
+            "C:\Program Files\Amazon"
+            "C:\Program Files\Mozilla Firefox"
+            "C:\Program Files (x86)\WiX Toolset v3.14"
+            "C:\Program Files\CMake"
+            "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI"
+            "C:\Program Files\IIS Express"
+            "C:\Miniconda"
+            "C:\Julia"
+            "C:\Go"
+            "C:\Perl"
+            "C:\npm"
+            "C:\Program Files\nodejs"
+            "C:\Program Files\PowerShell"
+            "C:\Program Files (x86)\Microsoft\Edge"
+            "C:\Program Files\Microsoft\Edge"
+          ) do (
+            if exist %%D (
+              echo Deleting %%D ...
+              rmdir /s /q %%D 2>nul
+            )
           )
+          echo Programs deleted!
 
-          $count = 0
-          foreach ($p in $paths) {
-            if (Test-Path $p) {
-              Write-Host "Deleting: $p"
-              cmd /c "rmdir /s /q `"$p`"" 2>$null
-              $count++
-            }
-          }
+          echo.
+          echo [3/4] Cleaning temp files and caches...
+          rmdir /s /q "%TEMP%" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\Temp" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\pip" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\Yarn" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\nuget" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\Go" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\Programs\Python" 2>nul
+          rmdir /s /q "%LOCALAPPDATA%\node-gyp" 2>nul
+          rmdir /s /q "C:\Windows\Temp" 2>nul
+          rmdir /s /q "C:\Windows\SoftwareDistribution\Download" 2>nul
+          rmdir /s /q "C:\Windows\Minidump" 2>nul
+          del /f /q "C:\Windows\MEMORY.DMP" 2>nul
+          echo Temp cleaned!
 
-          Write-Host "=== Killing heavy processes ==="
-          Get-Process -Name "vs_*","setup*","devenv*","mongod*","mysql*","postgres*","sqlservr*","OneDrive*","msedge*","MicrosoftEdge*","Teams*","Chrome*","firefox*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-          Write-Host "=== Cleaning temp files ==="
-          cmd /c "rmdir /s /q `"$env:TEMP`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Temp`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\pip`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Yarn`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\nuget`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Go`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Programs\Python`"" 2>$null
-          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\node-gyp`"" 2>$null
-          cmd /c "rmdir /s /q `"C:\Windows\Temp`"" 2>$null
-          cmd /c "rmdir /s /q `"C:\Windows\SoftwareDistribution\Download`"" 2>$null
-          cmd /c "rmdir /s /q `"C:\Windows\Minidump`"" 2>$null
-          cmd /c "del /f /q `"C:\Windows\MEMORY.DMP`"" 2>$null
-
-          Write-Host "=== Disabling hibernation ==="
+          echo.
+          echo [4/4] Disabling hibernation and pagefile...
           powercfg /hibernate off
+          echo Done!
 
-          Write-Host "=== Disabling pagefile ==="
-          $cs = Get-WmiObject Win32_ComputerSystem
-          $cs.AutomaticManagedPagefile = $false
-          $cs.Put() | Out-Null
-
-          $after = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-          $freed = [math]::Round($after - $before, 2)
-          Write-Host ""
-          Write-Host "=== CLEANUP DONE ==="
-          Write-Host "Deleted $count paths"
-          Write-Host "Free space BEFORE: ${before}GB"
-          Write-Host "Free space AFTER:  ${after}GB"
-          Write-Host "Freed: ${freed}GB"
+          echo.
+          echo ============================================================
+          echo   CLEANUP COMPLETE!
+          echo ============================================================
+          echo.
+          for /f "tokens=2 delims==" %%a in ('wmic logicaldisk where "DeviceID='C:'" get FreeSpace /value ^| findstr "="') do set /a "freeGB=%%a / 1073741824"
+          echo   Free Space: %freeGB% GB
+          echo.
+          echo   Press any key to exit...
+          pause >nul
+          "@
+          $script | Out-File "$desktop\CLEANUP-70GB.bat" -Encoding ASCII -Force
+          Write-Host "Cleanup script saved to: $desktop\CLEANUP-70GB.bat"
 
       - name: Enable RDP + Aggressive Optimization
         shell: pwsh
