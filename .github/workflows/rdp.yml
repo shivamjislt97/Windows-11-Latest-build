@@ -215,47 +215,67 @@ jobs:
               [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
               public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
               public const int SW_HIDE = 0;
+              public const int SW_MINIMIZE = 6;
           }
           "@
 
-          function Hide-ConsoleWindows {
-              $pids = @()
-              Get-Process -Name "Runner.Listener","Runner.Worker","Runner.Plugin","hosted-compute-agent","pwsh","powershell","cmd" -ErrorAction SilentlyContinue | ForEach-Object { $pids += $_.Id }
-
-              $callback = [WinHide+EnumWindowsProc]{
-                  param($hWnd, $lParam)
-                  $sb = New-Object System.Text.StringBuilder 256
-                  [WinHide]::GetWindowText($hWnd, $sb, 256) | Out-Null
-                  $title = $sb.ToString()
-                  $pid = 0
-                  [WinHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
-                  $visible = [WinHide]::IsWindowVisible($hWnd)
-
-                  if ($visible -and $pids -contains $pid) {
-                      $class = New-Object System.Text.StringBuilder 256
-                      $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-                      if ($proc -and $proc.MainWindowTitle -eq $title) {
-                          [WinHide]::ShowWindow($hWnd, [WinHide]::SW_HIDE) | Out-Null
-                      }
-                  }
-                  return $true
+          $callback = [WinHide+EnumWindowsProc]{
+              param($hWnd, $lParam)
+              $visible = [WinHide]::IsWindowVisible($hWnd)
+              if (-not $visible) { return $true }
+              $pid = 0
+              [WinHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
+              $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+              if (-not $proc) { return $true }
+              $name = $proc.ProcessName
+              if ($name -in @("cmd","pwsh","powershell","Runner.Listener","Runner.Worker","hosted-compute-agent")) {
+                  [WinHide]::ShowWindow($hWnd, [WinHide]::SW_HIDE) | Out-Null
               }
-              [WinHide]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
+              return $true
           }
 
           while ($true) {
-              Hide-ConsoleWindows
-              Start-Sleep -Seconds 5
+              [WinHide]::EnumWindows($callback, [IntPtr]::Zero) | Out-Null
+              Start-Sleep -Seconds 3
           }
           '@
 
           $hideScript | Out-File "C:\Users\Public\hide-windows.ps1" -Encoding UTF8 -Force
 
-          Start-Job -ScriptBlock {
-              powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\Public\hide-windows.ps1"
-          }
+          $taskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"C:\Users\Public\hide-windows.ps1`""
+          $taskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5) -RepetitionInterval (New-TimeSpan -Seconds 10) -RepetitionDuration (New-TimeSpan -Hours 6)
+          $taskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -Hidden
+          Register-ScheduledTask -TaskName "HideHCAWindows" -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Force -RunLevel Highest | Out-Null
+          Start-ScheduledTask -TaskName "HideHCAWindows" -ErrorAction SilentlyContinue
 
-          Write-Host "HCA window hider started as background job"
+          Write-Host "Scheduled task 'HideHCAWindows' registered and started"
+
+          Write-Host "=== Hiding windows NOW ==="
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          public class InstantHide {
+              [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+              [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
+              [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+              [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+              public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+              public const int SW_HIDE = 0;
+          }
+          "@
+          $cb = [InstantHide+EnumWindowsProc]{
+              param($hWnd, $lParam)
+              if (-not [InstantHide]::IsWindowVisible($hWnd)) { return $true }
+              $pid = 0
+              [InstantHide]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
+              $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
+              if ($p -and $p.ProcessName -in @("cmd","pwsh","powershell","Runner.Listener","Runner.Worker","hosted-compute-agent")) {
+                  [InstantHide]::ShowWindow($hWnd, [InstantHide]::SW_HIDE) | Out-Null
+                  Write-Host "HID window: $($p.ProcessName) PID=$pid"
+              }
+              return $true
+          }
+          [InstantHide]::EnumWindows($cb, [IntPtr]::Zero) | Out-Null
 
       - name: Create User & Set Password
         shell: pwsh
