@@ -1,68 +1,171 @@
-name: Windows RDP
+name: WindowsRDP
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: rdp-tunnel
+  cancel-in-progress: false
 
 jobs:
   rdp:
-    runs-on: windows-latest        # 4 core / 16 GB RAM (public repo = free)
-    timeout-minutes: 360           # max 6 hours, phir machine auto-destroy
+    runs-on: windows-latest
+    timeout-minutes: 360
+
     steps:
-      - name: Enable RDP + set random password
-        shell: powershell
+      - name: Download & Setup Ngrok
+        shell: pwsh
         run: |
-          # Random strong password generate karo
+          Write-Host "=== Downloading ngrok ==="
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip -DestinationPath .\ngrok -Force
+          $ver = .\ngrok\ngrok.exe version 2>&1
+          Write-Host "ngrok version: $ver"
+          $token = "3GA2y6tYHMZMf4lAw8urHZbQeKL_6kaKZNHuFVrt3KJxir2vH"
+          Write-Host "Using ngrok authtoken"
+          try {
+            $h = @{ Authorization = "Bearer $token"; "Ngrok-Version" = "2" }
+            $agents = Invoke-RestMethod -Uri "https://api.ngrok.com/agents" -Headers $h -TimeoutSec 10 -ErrorAction Stop
+            foreach ($a in $agents.agents) {
+              Invoke-RestMethod -Uri "https://api.ngrok.com/agents/$($a.id)" -Headers $h -Method Delete -ErrorAction SilentlyContinue | Out-Null
+              Write-Host "Killed old agent $($a.id)"
+            }
+          } catch { Write-Host "Agent cleanup: no old agents or API not available" }
+          Write-Host "Authtoken length: $($token.Length) chars"
+          $configDir = "$env:LOCALAPPDATA\ngrok"
+          New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+          "version: 2`nauthtoken: $token" | Out-File "$configDir\ngrok.yml" -Encoding UTF8 -Force
+          .\ngrok\ngrok.exe authtoken $token 2>&1 | Write-Host
+          Write-Host "=== ngrok setup DONE ==="
+
+      - name: Enable RDP + Full Optimization
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'SilentlyContinue'
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'ColorDepth' -Value 4
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -Value 0
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency' -Value 1
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TCPNoDelay' -Value 1
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpDelAckTicks' -Value 0
+          $tsPath = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+          if (-not (Test-Path $tsPath)) { New-Item -Path $tsPath -Force | Out-Null }
+          New-ItemProperty -Path $tsPath -Name 'AVC444ModePreferred' -Value 1 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCHardwareEncodePreferred' -Value 1 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'bEnumerateHWBeforeSW' -Value 1 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCPreferredProfile' -Value 1 -PropertyType DWord -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name 'VisualFXSetting' -Value 2 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'TaskbarAnimations' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'ListviewShadow' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'IconsOnly' -Value 1 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'EnableTransparency' -Value 0 -Force
+          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          powercfg /change monitor-timeout-ac 0
+          powercfg /change standby-timeout-ac 0
+          Stop-Service -Name SysMain -Force
+          Set-Service -Name SysMain -StartupType Disabled
+          Stop-Service -Name DiagTrack -Force
+          Set-Service -Name DiagTrack -StartupType Disabled
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnablePrefetcher' -Value 0 -Force
+          Set-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters' -Name 'EnableSuperfetch' -Value 0 -Force
+          Write-Host "RDP + Full Optimization DONE!"
+
+      - name: Create User & Set Password
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'SilentlyContinue'
+          $newUser = "mastertech"
           Add-Type -AssemblyName System.Web
           $pass = [System.Web.Security.Membership]::GeneratePassword(16, 4)
-          net user runneradmin "$pass"
-
-          # RDP enable karo
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-
-          Write-Host "=================================================="
-          Write-Host "RDP Username : runneradmin"
-          Write-Host "RDP Password : $pass"
-          Write-Host "=================================================="
-
-          # Password ko next step ke liye env mein save karo
+          $secpassword = ConvertTo-SecureString -AsPlainText $pass -Force
+          New-LocalUser -Name $newUser -Password $secpassword -FullName $newUser -Description "RDP User" -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Administrators" -Member $newUser -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member $newUser -ErrorAction SilentlyContinue
+          Set-LocalUser -Name "runneradmin" -Password $secpassword
+          Write-Host "User '$newUser' created!"
           "RDP_PASS=$pass" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Install + connect Tailscale
-        shell: powershell
+      - name: Start RDP Tunnel + Show Details
+        shell: pwsh
         run: |
-          # Tailscale install karo
-          $msi = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -UseBasicParsing "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi" -OutFile $msi
-          Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /quiet /norestart" -Wait
-          $ts = "C:\Program Files\Tailscale\tailscale.exe"
+          $sig = '[DllImport("kernel32.dll")] public static extern bool SetConsoleTitleW(string title);'
+          Add-Type -MemberDefinition $sig -Name ConsoleAPI -Namespace Native -PassThru
+          [Native.ConsoleAPI]::SetConsoleTitleW("DO NOT CLOSE - RDP Tunnel Service")
+          Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
+          Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
+          $rdpUrl = ""
+          for ($i = 1; $i -le 15; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $tunnel = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 3
+              $tcpTunnel = $tunnel.tunnels | Where-Object { $_.public_url -match "tcp://" } | Select-Object -First 1
+              if ($tcpTunnel) { $rdpUrl = $tcpTunnel.public_url -replace "tcp://",""; break }
+            } catch {}
+            if (-not (Get-Process -Name ngrok -ErrorAction SilentlyContinue)) {
+              Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
+            }
+          }
+          $rdpUser = "mastertech"
+          $rdpPass = $env:RDP_PASS
+          if ([string]::IsNullOrWhiteSpace($rdpPass)) { $rdpPass = "mastertech" }
+          $userSpaced = ($rdpUser.ToCharArray() -join ' ')
+          $passSpaced = ($rdpPass.ToCharArray() -join ' ')
+          $userB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpUser))
+          $passB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rdpPass))
+          $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
+          if ([string]::IsNullOrWhiteSpace($rdpUrl)) { $rdpUrl = "FAILED - Ngrok limit hit or token invalid." }
+          Write-Host ""
+          Write-Host "============================================"
+          Write-Host "  RDP READY - ${freeGB}GB FREE!"
+          Write-Host "============================================"
+          Write-Host "  Address:  $rdpUrl"
+          Write-Host "  Username: $rdpUser"
+          Write-Host "  Password: $rdpPass"
+          Write-Host "============================================"
+          Write-Host "  UNMASKED LOGIN (remove spaces):"
+          Write-Host "  Username: $userSpaced"
+          Write-Host "  Password: $passSpaced"
+          Write-Host "  Username B64: $userB64"
+          Write-Host "  Password B64: $passB64"
+          Write-Host "============================================"
+          Write-Host ""
+          $credFile = "$env:SystemDrive\Users\Public\Desktop\RDP-CREDENTIALS.txt"
+          @("============================================","  RDP LOGIN CREDENTIALS","============================================","  Address:  $rdpUrl","  Username: $rdpUser","  Password: $rdpPass","  Username (spaced): $userSpaced","  Password (spaced): $passSpaced","  Username B64: $userB64","  Password B64: $passB64","============================================") | Out-File $credFile -Encoding UTF8 -Force
+          @"
+          ## RDP Credentials (UNMASKED)
+          - **Address:** ``$rdpUrl``
+          - **Username (spaced):** ``$userSpaced``
+          - **Password (spaced):** ``$passSpaced``
+          "@ | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
+          Write-Host "  Credentials saved to Desktop + Step Summary"
+          Write-Host ""
+          Write-Host "Tunnel LIVE - keeping alive 6 hours..."
+          while ($true) {
+            Start-Sleep -Seconds 30
+            try {
+              Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 5 -ErrorAction Stop | Out-Null
+            } catch {
+              Write-Host "  ngrok restart..."
+              Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp 3389 --region in --log=ngrok-tunnel.log --log-format logfmt"
+              Start-Sleep -Seconds 8
+            }
+          }
 
-          # tailscaled service start
-          Start-Sleep 5
-          Start-Service Tailscale 2>$null
-
-          # auth key se connect (ephemeral node)
-          & $ts up --authkey="${{ secrets.TS_AUTHKEY }}" --hostname=gh-rdp-runner --accept-routes
-          Start-Sleep 5
-
-          $ip = (& $ts ip -4)
-          Write-Host "=================================================="
-          Write-Host "Tailscale IP : $ip"
-          Write-Host "Is IP par Remote Desktop se connect karo (aapke PC par bhi Tailscale login hona chahiye same account se)"
-          Write-Host "Username : runneradmin"
-          Write-Host "=================================================="
-
-          # Connection details ko run Summary page par dikhao (expand karne ki zaroorat nahi)
-          "## Windows RDP Connection Details"                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          ""                                                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "| Field | Value |"                                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "| ----- | ----- |"                                | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "| Tailscale IP | ``$ip`` |"                       | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "| Username | ``runneradmin`` |"                   | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "| Password | ``$env:RDP_PASS`` |"                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          ""                                                 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          "Connect: Apne PC par Tailscale login karo (same account), phir Remote Desktop mein upar wali IP daalo." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-
-      - name: Keep alive (6 hours)
-        shell: powershell
-        run: Start-Sleep 21600
+      - name: Monitor - Report Status
+        if: always()
+        shell: pwsh
+        run: |
+          $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          Write-Host "=== Monitor ==="
+          Write-Host "Run: $runUrl"
+          try {
+            $t = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 3 -ErrorAction Stop
+            $tcp = $t.tunnels | Where-Object { $_.public_url -match "tcp://" } | Select-Object -First 1
+            if ($tcp) { Write-Host "Tunnel: $($tcp.public_url)" }
+          } catch { Write-Host "Tunnel: N/A (ngrok not running)" }
+          "## RDP Status`n- Run: [$env:GITHUB_REPOSITORY#$env:GITHUB_RUN_ID]($runUrl)`n- Time: $(Get-Date)" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding UTF8
