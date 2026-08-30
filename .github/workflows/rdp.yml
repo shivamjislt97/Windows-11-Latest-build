@@ -21,93 +21,339 @@ jobs:
           $desktop = "$env:SystemDrive\Users\Public\Desktop"
           $script = @"
           @echo off
-          title SYSTEM CLEANUP - Free 70GB+ Space
-          color 0A
+          title SYSTEM CLEANUP - DELETE ALL UNUSED PROGRAMS
+          color 0C
           echo ============================================================
-          echo   SYSTEM CLEANUP - Run as Administrator for best results
+          echo   WARNING: THIS SCRIPT WILL DELETE THE FOLLOWING:
           echo ============================================================
           echo.
-          echo   This will delete unused programs to free ~70GB+ space.
-          echo   Press any key to start...
-          pause >nul
+          echo   --- PART 1: HEAVY PROGRAMS (~76 GB) ---
+          echo   [1]  Microsoft Visual Studio            ~31.6 GB
+          echo   [2]  Android SDK (x86)                  ~14.0 GB
+          echo   [3]  dotnet SDK                          ~11.6 GB
+          echo   [4]  GitHub hostedtoolcache               ~4.8 GB
+          echo   [5]  ghcup (Haskell)                      ~4.2 GB
+          echo   [6]  rtools45 (R)                         ~3.1 GB
+          echo   [7]  Azure Cosmos DB Emulator             ~2.5 GB
+          echo   [8]  LLVM                                 ~2.4 GB
+          echo   [9]  MongoDB                              ~2.0 GB
+          echo.
+          echo   --- PART 2: ADDITIONAL PROGRAMS (~15.7 GB) ---
+          echo   [10] Windows SDK (10.0.26100.8249)        2.28 GB
+          echo   [11] PostgreSQL 17                        1.02 GB
+          echo   [12] Strawberry Perl (64-bit)             1.00 GB
+          echo   [13] OpenSSL 3.6.3 (64-bit)              0.83 GB
+          echo   [14] Unity Hub 3.21.0                     0.56 GB
+          echo   [15] Microsoft Azure Service Fabric       0.56 GB
+          echo   [16] MySQL Server 8.0                     0.55 GB
+          echo   [17] SQL Server Integration Services      0.37 GB
+          echo   [18] AWS SAM CLI                          0.35 GB
+          echo   [19] Mozilla Firefox                      0.34 GB
+          echo   [20] SQL Server 2025 LocalDB              0.31 GB
+          echo   [21] WiX Toolset v3.14                    0.28 GB
+          echo   [22] AWS CLI v2                           0.19 GB
+          echo   [23] R for Windows 4.6.1                  0.19 GB
+          echo   [24] CMake                                0.16 GB
+          echo   [25] Windows SDK (10.0.26100.7705)        0.10 GB
+          echo   [26] ImageMagick 7.1.2-25                 0.06 GB
+          echo   [27] Azure Service Fabric SDK             0.06 GB
+          echo   [28] IIS 10.0 Express                     0.05 GB
+          echo.
+          echo   TOTAL ESTIMATED: ~92 GB
+          echo.
+          echo ============================================================
+          echo   Close this window NOW to abort.
+          echo   Otherwise, deletion starts in 10 seconds...
+          echo ============================================================
+          timeout /t 10 /nobreak >nul
+
+          echo.
+          echo [STARTING CLEANUP...]
           echo.
 
-          echo [1/4] Killing heavy processes...
-          taskkill /F /IM vs_* /IM setup* /IM devenv* /IM mongod* /IM mysql* /IM postgres* /IM sqlservr* /IM OneDrive* /IM msedge* /IM MicrosoftEdge* /IM Teams* /IM Chrome* /IM firefox* 2>nul
-          echo Done!
+          :: ============================================================
+          :: PART 1: HEAVY PROGRAMS
+          :: ============================================================
 
-          echo.
-          echo [2/4] Deleting large programs...
-          for %%D in (
-            "C:\Program Files\Microsoft Visual Studio"
-            "C:\Program Files (x86)\Microsoft Visual Studio"
-            "C:\Program Files (x86)\Android"
-            "C:\Android"
-            "C:\Program Files\dotnet"
-            "C:\Program Files (x86)\dotnet"
-            "C:\hostedtoolcache"
-            "C:\ghcup"
-            "C:\rtools45"
-            "C:\rtools"
-            "C:\Program Files\R"
-            "C:\Program Files\Azure Cosmos DB Emulator"
-            "C:\Program Files\LLVM"
-            "C:\Program Files\MongoDB"
-            "C:\Program Files\mongosh"
-            "C:\Program Files (x86)\Windows Kits"
-            "C:\Program Files\PostgreSQL"
-            "C:\Strawberry"
-            "C:\Program Files\OpenSSL"
-            "C:\Program Files\Unity Hub"
-            "C:\Program Files\Microsoft Service Fabric"
-            "C:\Program Files\MySQL"
-            "C:\Program Files (x86)\Microsoft SQL Server"
-            "C:\Program Files\Microsoft SQL Server"
-            "C:\Program Files\Amazon"
-            "C:\Program Files\Mozilla Firefox"
-            "C:\Program Files (x86)\WiX Toolset v3.14"
-            "C:\Program Files\CMake"
-            "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI"
-            "C:\Program Files\IIS Express"
-            "C:\Miniconda"
-            "C:\Julia"
-            "C:\Go"
-            "C:\Perl"
-            "C:\npm"
-            "C:\Program Files\nodejs"
-            "C:\Program Files\PowerShell"
-            "C:\Program Files (x86)\Microsoft\Edge"
-            "C:\Program Files\Microsoft\Edge"
-          ) do (
-            if exist %%D (
-              echo Deleting %%D ...
-              rmdir /s /q %%D 2>nul
-            )
+          echo [1/28] Deleting Microsoft Visual Studio...
+          if exist "C:\Program Files\Microsoft Visual Studio" (
+              rd /s /q "C:\Program Files\Microsoft Visual Studio" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
           )
-          echo Programs deleted!
 
           echo.
-          echo [3/4] Cleaning temp files and caches...
-          rmdir /s /q "%TEMP%" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\Temp" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\pip" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\Yarn" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\nuget" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\Go" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\Programs\Python" 2>nul
-          rmdir /s /q "%LOCALAPPDATA%\node-gyp" 2>nul
-          rmdir /s /q "C:\Windows\Temp" 2>nul
-          rmdir /s /q "C:\Windows\SoftwareDistribution\Download" 2>nul
-          rmdir /s /q "C:\Windows\Minidump" 2>nul
-          del /f /q "C:\Windows\MEMORY.DMP" 2>nul
-          echo Temp cleaned!
+          echo [2/28] Deleting Android SDK...
+          if exist "C:\Program Files (x86)\Android" (
+              rd /s /q "C:\Program Files (x86)\Android" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+          if exist "C:\Android" (
+              rd /s /q "C:\Android" 2>nul
+              echo        C:\Android [DELETED]
+          )
 
           echo.
-          echo [4/4] Disabling hibernation and pagefile...
-          powercfg /hibernate off
-          echo Done!
+          echo [3/28] Deleting dotnet SDK...
+          if exist "C:\Program Files\dotnet" (
+              rd /s /q "C:\Program Files\dotnet" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+          if exist "C:\Program Files (x86)\dotnet" (
+              rd /s /q "C:\Program Files (x86)\dotnet" 2>nul
+              echo        (x86) [DELETED]
+          )
 
           echo.
+          echo [4/28] Deleting GitHub hostedtoolcache...
+          if exist "C:\hostedtoolcache" (
+              rd /s /q "C:\hostedtoolcache" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [5/28] Deleting ghcup (Haskell)...
+          if exist "C:\ghcup" (
+              rd /s /q "C:\ghcup" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [6/28] Deleting rtools45 (R)...
+          if exist "C:\rtools45" (
+              rd /s /q "C:\rtools45" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+          if exist "C:\Program Files\R" (
+              rd /s /q "C:\Program Files\R" 2>nul
+              echo        Program Files\R [DELETED]
+          )
+
+          echo.
+          echo [7/28] Deleting Azure Cosmos DB Emulator...
+          if exist "C:\Program Files\Azure Cosmos DB Emulator" (
+              rd /s /q "C:\Program Files\Azure Cosmos DB Emulator" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [8/28] Deleting LLVM...
+          if exist "C:\Program Files\LLVM" (
+              rd /s /q "C:\Program Files\LLVM" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [9/28] Deleting MongoDB...
+          if exist "C:\Program Files\MongoDB" (
+              rd /s /q "C:\Program Files\MongoDB" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+          if exist "C:\Program Files\mongosh" (
+              rd /s /q "C:\Program Files\mongosh" 2>nul
+              echo        mongosh [DELETED]
+          )
+
+          :: ============================================================
+          :: PART 2: ADDITIONAL PROGRAMS
+          :: ============================================================
+
+          echo.
+          echo [10/28] Deleting Windows SDK...
+          if exist "C:\Program Files (x86)\Windows Kits\10" (
+              rd /s /q "C:\Program Files (x86)\Windows Kits\10" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [11/28] Deleting PostgreSQL 17...
+          if exist "C:\Program Files\PostgreSQL" (
+              rd /s /q "C:\Program Files\PostgreSQL" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [12/28] Deleting Strawberry Perl...
+          if exist "C:\Strawberry" (
+              rd /s /q "C:\Strawberry" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [13/28] Deleting OpenSSL...
+          if exist "C:\Program Files\OpenSSL" (
+              rd /s /q "C:\Program Files\OpenSSL" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [14/28] Deleting Unity Hub...
+          if exist "C:\Program Files\Unity Hub" (
+              rd /s /q "C:\Program Files\Unity Hub" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [15/28] Deleting Microsoft Azure Service Fabric...
+          if exist "C:\Program Files\Microsoft Service Fabric" (
+              rd /s /q "C:\Program Files\Microsoft Service Fabric" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [16/28] Deleting MySQL Server 8.0...
+          if exist "C:\Program Files\MySQL" (
+              rd /s /q "C:\Program Files\MySQL" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [17/28] Deleting SQL Server Integration Services...
+          if exist "C:\Program Files (x86)\Microsoft SQL Server" (
+              rd /s /q "C:\Program Files (x86)\Microsoft SQL Server" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [18/28] Deleting AWS SAM CLI...
+          if exist "C:\Program Files\Amazon" (
+              rd /s /q "C:\Program Files\Amazon" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [19/28] Deleting Mozilla Firefox...
+          if exist "C:\Program Files\Mozilla Firefox" (
+              rd /s /q "C:\Program Files\Mozilla Firefox" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [20/28] Deleting SQL Server 2025 LocalDB...
+          if exist "C:\Program Files\Microsoft SQL Server" (
+              rd /s /q "C:\Program Files\Microsoft SQL Server" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [21/28] Deleting WiX Toolset v3.14...
+          if exist "C:\Program Files (x86)\WiX Toolset v3.14" (
+              rd /s /q "C:\Program Files (x86)\WiX Toolset v3.14" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [22/28] Deleting AWS CLI v2...
+          if exist "C:\Program Files\Amazon\AWSCLI" (
+              rd /s /q "C:\Program Files\Amazon\AWSCLI" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [23/28] Deleting R for Windows...
+          if exist "C:\Program Files\R" (
+              rd /s /q "C:\Program Files\R" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [24/28] Deleting CMake...
+          if exist "C:\Program Files\CMake" (
+              rd /s /q "C:\Program Files\CMake" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [25/28] Windows SDK (10.0.26100.7705)...
+          echo        (Already removed with item 10)
+
+          echo.
+          echo [26/28] Deleting ImageMagick...
+          if exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" (
+              rd /s /q "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          echo.
+          echo [27/28] Azure Service Fabric SDK...
+          echo        (Already removed with item 15)
+
+          echo.
+          echo [28/28] Deleting IIS 10.0 Express...
+          if exist "C:\Program Files\IIS Express" (
+              rd /s /q "C:\Program Files\IIS Express" 2>nul
+              echo        [DELETED]
+          ) else (
+              echo        [NOT FOUND - SKIPPED]
+          )
+
+          :: ============================================================
+          :: CLEANUP COMPLETE
+          :: ============================================================
+          echo.
+          echo ============================================================
+          echo   CLEANUP COMPLETE! ALL 28 ITEMS PROCESSED.
+          echo ============================================================
+          echo.
+          echo   Checking free space...
+          echo.
+          for /f "tokens=2 delims==" %%a in ('wmic logicaldisk where "DeviceID='C:'" get FreeSpace /value ^| findstr "="') do set /a "freeGB=%%a / 1073741824"
+          echo   C: Drive Free Space: %freeGB% GB
+          echo.
+          echo   Press any key to exit...
+          pause >nul
+          "@
+          $script | Out-File "$desktop\CLEANUP-ALL.bat" -Encoding ASCII -Force
+          Write-Host "Cleanup script saved to: $desktop\CLEANUP-ALL.bat"
           echo ============================================================
           echo   CLEANUP COMPLETE!
           echo ============================================================
