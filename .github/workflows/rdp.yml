@@ -88,7 +88,7 @@ jobs:
           foreach ($p in $paths) {
             if (Test-Path $p) {
               Write-Host "Deleting: $p"
-              Remove-Item -Path $p -Recurse -Force -ErrorAction SilentlyContinue
+              cmd /c "rmdir /s /q `"$p`"" 2>$null
               $count++
             }
           }
@@ -97,12 +97,18 @@ jobs:
           Get-Process -Name "vs_*","setup*","devenv*","mongod*","mysql*","postgres*","sqlservr*","OneDrive*","msedge*","MicrosoftEdge*","Teams*","Chrome*","firefox*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
           Write-Host "=== Cleaning temp files ==="
-          Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "C:\Windows\Minidump\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "C:\Windows\MEMORY.DMP" -Force -ErrorAction SilentlyContinue
+          cmd /c "rmdir /s /q `"$env:TEMP`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Temp`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\pip`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Yarn`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\nuget`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Go`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\Programs\Python`"" 2>$null
+          cmd /c "rmdir /s /q `"$env:LOCALAPPDATA\node-gyp`"" 2>$null
+          cmd /c "rmdir /s /q `"C:\Windows\Temp`"" 2>$null
+          cmd /c "rmdir /s /q `"C:\Windows\SoftwareDistribution\Download`"" 2>$null
+          cmd /c "rmdir /s /q `"C:\Windows\Minidump`"" 2>$null
+          cmd /c "del /f /q `"C:\Windows\MEMORY.DMP`"" 2>$null
 
           Write-Host "=== Disabling hibernation ==="
           powercfg /hibernate off
