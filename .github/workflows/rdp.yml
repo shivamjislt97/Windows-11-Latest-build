@@ -636,18 +636,6 @@ jobs:
           netsh interface tcp set global autotuninglevel=disabled | Out-Null
           Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
-      - name: Run Deep Cleanup Script
-        shell: pwsh
-        run: |
-          $desktop = "$env:SystemDrive\Users\Public\Desktop"
-          $cleanupScript = "$desktop\CLEANUP-DEEP.bat"
-          Write-Host "=== Running Deep Cleanup Script ==="
-          Write-Host "Script: $cleanupScript"
-          $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cleanupScript" -Wait -PassThru -NoNewWindow
-          Write-Host "Cleanup script exit code: $($process.ExitCode)"
-          $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-          Write-Host "=== Free Space After Cleanup: $freeGB GB ==="
-
       - name: Download & Start Bore Tunnel (Silent)
         shell: pwsh
         run: |
@@ -716,6 +704,9 @@ jobs:
           Password : $p
           ========================================
           Free Space: ${freeGB} GB
+          ========================================
+          NOTE: CLEANUP SCRIPT on Desktop!
+          Run CLEANUP-DEEP.bat to free ~115GB
           ========================================
           "@ | Out-File $credFile -Encoding UTF8 -Force
 
