@@ -692,6 +692,16 @@ jobs:
           }
           $freeGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
 
+          Write-Host ""
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "  RDP CREDENTIALS - ${freeGB}GB FREE"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host "  ADDRESS  : $boreAddress"
+          Write-Host "  USERNAME : $u"
+          Write-Host "  PASSWORD : $p"
+          Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+          Write-Host ""
+
           # Create desktop shortcut with credentials
           $desktop = "$env:SystemDrive\Users\Public\Desktop"
           $credFile = "$desktop\RDP-CREDENTIALS.txt"
