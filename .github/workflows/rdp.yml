@@ -349,25 +349,20 @@ jobs:
             '    Write-Host "[ERROR] $_" -ForegroundColor Red',
             '}',
             '',
-            'Write-Host "DOWNLOAD WALLPAPER FROM GITHUB..." -ForegroundColor Yellow',
-            '$imageUrl = "https://github.com/shivamjislt97/Windows-11-Latest-build/releases/download/wallpaper-v1/Windows%2011.png"',
-            '$imagePath = "$downloadDir\Windows11.png"',
-            'try {',
-            '    Invoke-WebRequest -Uri $imageUrl -OutFile $imagePath -TimeoutSec 30',
-            '    Write-Host "[OK] Downloaded wallpaper" -ForegroundColor Green',
-            '} catch {',
-            '    Write-Host "[ERROR] Download failed: $_" -ForegroundColor Red',
+            'Write-Host "SET WALLPAPER FROM DEFAULT..." -ForegroundColor Yellow',
+            '$finalWp = "C:\Windows\Web\Wallpaper\ThemeA\img20.jpg"',
+            'if (!(Test-Path $finalWp)) {',
+            '    $fallback = Get-ChildItem "C:\Windows\Web\Wallpaper" -Include *.jpg,*.png -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1',
+            '    if ($fallback) { $finalWp = $fallback.FullName }',
             '}',
-            '',
-            'Write-Host "SET WALLPAPER..." -ForegroundColor Yellow',
-            'if ($imagePath -and (Test-Path $imagePath)) {',
-            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $imagePath',
+            'if (Test-Path $finalWp) {',
+            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $finalWp',
             '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0"',
             '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "2"',
             '    RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True',
             '    Write-Host "[OK] Wallpaper SET!" -ForegroundColor Green',
             '} else {',
-            '    Write-Host "[ERROR] Image not found!" -ForegroundColor Red',
+            '    Write-Host "[ERROR] Default wallpaper not found!" -ForegroundColor Red',
             '}',
             'Write-Host "COMPLETE!" -ForegroundColor Cyan'
           )
@@ -660,20 +655,37 @@ jobs:
           Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
           Write-Host "  [OK] Dark Mode ON"
 
-          Write-Host "[+] Download & Set Wallpaper..."
-          $wpDir = "$env:USERPROFILE\Downloads\Wallpaper"
-          if (!(Test-Path $wpDir)) { New-Item -ItemType Directory -Path $wpDir -Force | Out-Null }
-          $wpFile = "$wpDir\Windows11.png"
-          $wpUrl = "https://github.com/shivamjislt97/Windows-11-Latest-build/releases/download/wallpaper-v1/Windows%2011.png"
-          try {
-            Invoke-WebRequest -Uri $wpUrl -OutFile $wpFile -TimeoutSec 30
-            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value $wpFile -Force
-            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
-            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '2' -Force
-            RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True
-            Write-Host "  [OK] Wallpaper SET"
-          } catch {
-            Write-Host "  [WARN] Wallpaper failed: $_"
+          Write-Host "[+] Set Wallpaper from default Windows..."
+          $finalWp = "C:\Windows\Web\Wallpaper\ThemeA\img20.jpg"
+          if (!(Test-Path $finalWp)) {
+            $fallback = Get-ChildItem "C:\Windows\Web\Wallpaper" -Include *.jpg,*.png -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($fallback) { $finalWp = $fallback.FullName }
+          }
+          Write-Host "  Using: $finalWp"
+
+          $personalizePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          if (-not (Test-Path $personalizePath)) { New-Item -Path $personalizePath -Force | Out-Null }
+          Set-ItemProperty -Path $personalizePath -Name 'AppsUseLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $personalizePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value $finalWp -Force
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '2' -Force
+
+          Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Wallpaper {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+}
+"@
+          [Wallpaper]::SystemParametersInfo(0x0014, 0, $finalWp, 0x0001 -bor 0x0002 -bor 0x0100) | Out-Null
+          Write-Host "  [OK] Wallpaper SET via SystemParametersInfo"
+
+          $themeIni = "C:\Windows\Resources\Themes\aero\aero.theme"
+          if (Test-Path $themeIni) {
+            try { Start-Process "rundll32.exe" -ArgumentList "shell32.dll,Control_RunDLL desk.cpl,,1" -Wait -ErrorAction SilentlyContinue } catch {}
           }
 
           Write-Host ""
