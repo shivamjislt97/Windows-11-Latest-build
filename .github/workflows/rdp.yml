@@ -19,448 +19,363 @@ jobs:
         shell: pwsh
         run: |
           $desktop = "$env:SystemDrive\Users\Public\Desktop"
-          $script = @"
-          @echo off
-          title SYSTEM CLEANUP - DEEP CLEAN ALL UNUSED PROGRAMS ^& JUNK FILES
-          color 0C
-          echo ============================================================
-          echo   SYSTEM CLEANUP - DEEP CLEAN WORKFLOW (V2)
-          echo ============================================================
-          echo.
-          echo   This script will delete ~115+ GB of:
-          echo   - Unused Programs
-          echo   - Developer Tools ^& SDKs
-          echo   - Package Manager Caches
-          echo   - Windows Junk Files
-          echo   - Symbol Files ^& Logs
-          echo.
-          echo   NOTE: PowerShell folder is EXCLUDED from deletion
-          echo.
-          echo ============================================================
-          echo   Close this window NOW to abort.
-          echo   Otherwise, deletion starts in 10 seconds...
-          echo ============================================================
-          timeout /t 10 /nobreak >nul
-          echo.
-          echo [STARTING DEEP CLEANUP...]
-          echo.
-          :: ============================================================
-          :: PHASE 1: STOP SERVICES
-          :: ============================================================
-          echo [PHASE 1] Stopping services...
-          for %%s in (SQLBrowser MSSQLSERVER SQLWriter MySQL MongoDB PostgreSQL Apache W3SVC IISADMIN Unity Firefox AWS SAM ServiceFabric) do (
-              net stop "%%s" >nul 2>&1
+          $lines = @(
+            '@echo off',
+            'title DEEP CLEANUP v5.0 - FAST',
+            'color 0C',
+            'echo.',
+            'echo ===========================================================',
+            'echo   DEEP CLEANUP v5.0 - RUN AS ADMINISTRATOR',
+            'echo ===========================================================',
+            'echo.',
+            'echo   Press any key to start...',
+            'pause >nul',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 0: Kill Processes',
+            'echo ==========================================',
+            'taskkill /F /IM devenv.exe >nul 2>&1',
+            'taskkill /F /IM dotnet.exe >nul 2>&1',
+            'taskkill /F /IM mongod.exe >nul 2>&1',
+            'taskkill /F /IM postgres.exe >nul 2>&1',
+            'taskkill /F /IM mysql.exe >nul 2>&1',
+            'taskkill /F /IM firefox.exe >nul 2>&1',
+            'taskkill /F /IM chrome.exe >nul 2>&1',
+            'taskkill /F /IM java.exe >nul 2>&1',
+            'taskkill /F /IM node.exe >nul 2>&1',
+            'taskkill /F /IM python.exe >nul 2>&1',
+            'taskkill /F /IM docker.exe >nul 2>&1',
+            'echo   [OK] Processes killed',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 1: Program Files (x86)',
+            'echo ==========================================',
+            'echo   [1/75] Android SDK...',
+            'rd /s /q "C:\Program Files (x86)\Android" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\Android" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [2/75] Microsoft SDKs (x86)...',
+            'rd /s /q "C:\Program Files (x86)\Microsoft SDKs" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\Microsoft SDKs" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [3/75] Windows Kits 10...',
+            'rd /s /q "C:\Program Files (x86)\Windows Kits" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\Windows Kits" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [4/75] Visual Studio (x86)...',
+            'rd /s /q "C:\Program Files (x86)\Microsoft Visual Studio" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\Microsoft Visual Studio" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [5/75] Reference Assemblies...',
+            'rd /s /q "C:\Program Files (x86)\Reference Assemblies" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\Reference Assemblies" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [6/75] dotnet (x86)...',
+            'rd /s /q "C:\Program Files (x86)\dotnet" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\dotnet" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [7/75] MSBuild (x86)...',
+            'rd /s /q "C:\Program Files (x86)\MSBuild" >nul 2>&1',
+            'if not exist "C:\Program Files (x86)\MSBuild" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 2: Program Files',
+            'echo ==========================================',
+            'echo   [8/75] dotnet SDK...',
+            'rd /s /q "C:\Program Files\dotnet" >nul 2>&1',
+            'if not exist "C:\Program Files\dotnet" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [9/75] Azure Cosmos DB...',
+            'rd /s /q "C:\Program Files\Azure Cosmos DB Emulator" >nul 2>&1',
+            'if not exist "C:\Program Files\Azure Cosmos DB Emulator" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [10/75] LLVM...',
+            'rd /s /q "C:\Program Files\LLVM" >nul 2>&1',
+            'if not exist "C:\Program Files\LLVM" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [11/75] MongoDB...',
+            'rd /s /q "C:\Program Files\MongoDB" >nul 2>&1',
+            'if not exist "C:\Program Files\MongoDB" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [12/75] PostgreSQL...',
+            'rd /s /q "C:\Program Files\PostgreSQL" >nul 2>&1',
+            'if not exist "C:\Program Files\PostgreSQL" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [13/75] OpenSSL...',
+            'rd /s /q "C:\Program Files\OpenSSL" >nul 2>&1',
+            'if not exist "C:\Program Files\OpenSSL" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [14/75] WSL...',
+            'rd /s /q "C:\Program Files\WSL" >nul 2>&1',
+            'if not exist "C:\Program Files\WSL" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [15/75] Unity Hub...',
+            'rd /s /q "C:\Program Files\Unity Hub" >nul 2>&1',
+            'if not exist "C:\Program Files\Unity Hub" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [16/75] Service Fabric...',
+            'rd /s /q "C:\Program Files\Microsoft Service Fabric" >nul 2>&1',
+            'if not exist "C:\Program Files\Microsoft Service Fabric" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [17/75] MySQL...',
+            'rd /s /q "C:\Program Files\MySQL" >nul 2>&1',
+            'if not exist "C:\Program Files\MySQL" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [18/75] AWS CLI...',
+            'rd /s /q "C:\Program Files\Amazon" >nul 2>&1',
+            'if not exist "C:\Program Files\Amazon" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [19/75] Google Chrome...',
+            'rd /s /q "C:\Program Files\Google\Chrome" >nul 2>&1',
+            'if not exist "C:\Program Files\Google\Chrome" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [20/75] SQL Server...',
+            'rd /s /q "C:\Program Files\Microsoft SQL Server" >nul 2>&1',
+            'if not exist "C:\Program Files\Microsoft SQL Server" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [21/75] Git...',
+            'rd /s /q "C:\Program Files\Git" >nul 2>&1',
+            'if not exist "C:\Program Files\Git" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [22/75] Firefox...',
+            'rd /s /q "C:\Program Files\Mozilla Firefox" >nul 2>&1',
+            'if not exist "C:\Program Files\Mozilla Firefox" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [23/75] Microsoft SDKs...',
+            'rd /s /q "C:\Program Files\Microsoft SDKs" >nul 2>&1',
+            'if not exist "C:\Program Files\Microsoft SDKs" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [24/75] mongosh...',
+            'rd /s /q "C:\Program Files\mongosh" >nul 2>&1',
+            'if not exist "C:\Program Files\mongosh" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [25/75] CMake...',
+            'rd /s /q "C:\Program Files\CMake" >nul 2>&1',
+            'if not exist "C:\Program Files\CMake" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [26/75] IIS Express...',
+            'rd /s /q "C:\Program Files\IIS Express" >nul 2>&1',
+            'if not exist "C:\Program Files\IIS Express" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [27/75] ImageMagick...',
+            'rd /s /q "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" >nul 2>&1',
+            'if not exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 3: C:\ Root Folders',
+            'echo ==========================================',
+            'echo   [28/75] C:\Android...',
+            'rd /s /q "C:\Android" >nul 2>&1',
+            'if not exist "C:\Android" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [29/75] Julia...',
+            'rd /s /q "C:\Julia" >nul 2>&1',
+            'if not exist "C:\Julia" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [30/75] Miniconda...',
+            'rd /s /q "C:\Miniconda" >nul 2>&1',
+            'if not exist "C:\Miniconda" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [31/75] mingw64...',
+            'rd /s /q "C:\mingw64" >nul 2>&1',
+            'if not exist "C:\mingw64" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [32/75] mingw32...',
+            'rd /s /q "C:\mingw32" >nul 2>&1',
+            'if not exist "C:\mingw32" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [33/75] Modules...',
+            'rd /s /q "C:\Modules" >nul 2>&1',
+            'if not exist "C:\Modules" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [34/75] actions-runner...',
+            'rd /s /q "C:\actions-runner" >nul 2>&1',
+            'if not exist "C:\actions-runner" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [35/75] actionarchivecache...',
+            'rd /s /q "C:\actionarchivecache" >nul 2>&1',
+            'if not exist "C:\actionarchivecache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [36/75] msys64...',
+            'rd /s /q "C:\msys64" >nul 2>&1',
+            'if not exist "C:\msys64" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [37/75] tools...',
+            'rd /s /q "C:\tools" >nul 2>&1',
+            'if not exist "C:\tools" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [38/75] vcpkg...',
+            'rd /s /q "C:\vcpkg" >nul 2>&1',
+            'if not exist "C:\vcpkg" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [39/75] Selenium...',
+            'rd /s /q "C:\SeleniumWebDrivers" >nul 2>&1',
+            'if not exist "C:\SeleniumWebDrivers" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [40/75] PostgreSQL (root)...',
+            'rd /s /q "C:\PostgreSQL" >nul 2>&1',
+            'if not exist "C:\PostgreSQL" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [41/75] npm (root)...',
+            'rd /s /q "C:\npm" >nul 2>&1',
+            'if not exist "C:\npm" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [42/75] ghcup...',
+            'rd /s /q "C:\ghcup" >nul 2>&1',
+            'if not exist "C:\ghcup" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [43/75] rtools45...',
+            'rd /s /q "C:\rtools45" >nul 2>&1',
+            'if not exist "C:\rtools45" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [44/75] Strawberry...',
+            'rd /s /q "C:\Strawberry" >nul 2>&1',
+            'if not exist "C:\Strawberry" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [45/75] hostedtoolcache...',
+            'rd /s /q "C:\hostedtoolcache" >nul 2>&1',
+            'if not exist "C:\hostedtoolcache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 4: Developer Caches',
+            'echo ==========================================',
+            'echo   [46/75] .rustup...',
+            'rd /s /q "%USERPROFILE%\.rustup" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.rustup" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [47/75] .cargo/bin...',
+            'rd /s /q "%USERPROFILE%\.cargo\bin" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.cargo\bin" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [48/75] .cargo/registry...',
+            'rd /s /q "%USERPROFILE%\.cargo\registry" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.cargo\registry" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [49/75] .dotnet/tools...',
+            'rd /s /q "%USERPROFILE%\.dotnet\tools" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.dotnet\tools" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [50/75] .gradle...',
+            'rd /s /q "%USERPROFILE%\.gradle" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.gradle" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [51/75] .nuget...',
+            'rd /s /q "%USERPROFILE%\.nuget" >nul 2>&1',
+            'if not exist "%USERPROFILE%\.nuget" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 5: AppData Caches',
+            'echo ==========================================',
+            'echo   [52/75] npm Cache...',
+            'rd /s /q "%LOCALAPPDATA%\npm-cache" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\npm-cache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [53/75] pip Cache...',
+            'rd /s /q "%LOCALAPPDATA%\pip\Cache" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\pip\Cache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [54/75] Yarn Cache...',
+            'rd /s /q "%LOCALAPPDATA%\yarn" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\yarn" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [55/75] NuGet Cache...',
+            'rd /s /q "%LOCALAPPDATA%\NuGet" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\NuGet" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [56/75] VS Cache...',
+            'rd /s /q "%LOCALAPPDATA%\Microsoft\VisualStudio" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\Microsoft\VisualStudio" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [57/75] Chrome Cache...',
+            'rd /s /q "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [58/75] Docker Desktop...',
+            'rd /s /q "%LOCALAPPDATA%\Docker" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\Docker" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [59/75] Slack Cache...',
+            'rd /s /q "%LOCALAPPDATA%\Slack" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\Slack" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [60/75] Discord Cache...',
+            'rd /s /q "%LOCALAPPDATA%\Discord" >nul 2>&1',
+            'if not exist "%LOCALAPPDATA%\Discord" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [61/75] npm Global...',
+            'rd /s /q "%APPDATA%\npm" >nul 2>&1',
+            'if not exist "%APPDATA%\npm" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 6: ProgramData Caches',
+            'echo ==========================================',
+            'echo   [62/75] Chocolatey...',
+            'rd /s /q "C:\ProgramData\chocolatey" >nul 2>&1',
+            'if not exist "C:\ProgramData\chocolatey" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [63/75] Package Cache...',
+            'rd /s /q "C:\ProgramData\Package Cache" >nul 2>&1',
+            'if not exist "C:\ProgramData\Package Cache" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [64/75] Docker Data...',
+            'rd /s /q "C:\ProgramData\docker" >nul 2>&1',
+            'if not exist "C:\ProgramData\docker" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [65/75] GitHub Data...',
+            'rd /s /q "C:\ProgramData\GitHub" >nul 2>&1',
+            'if not exist "C:\ProgramData\GitHub" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo   [66/75] Runner...',
+            'rd /s /q "C:\ProgramData\runner" >nul 2>&1',
+            'if not exist "C:\ProgramData\runner" (echo   [OK] DELETED) else (echo   [FAILED])',
+            'echo.',
+            'echo ==========================================',
+            'echo   PHASE 7: Temp & Windows Cleanup',
+            'echo ==========================================',
+            'echo   [67/75] Windows Temp...',
+            'del /f /s /q "C:\Windows\Temp\*" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [68/75] User Temp...',
+            'del /f /s /q "%TEMP%\*" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [69/75] Windows Update Cache...',
+            'net stop wuauserv >nul 2>&1',
+            'del /f /s /q "C:\Windows\SoftwareDistribution\Download\*" >nul 2>&1',
+            'net start wuauserv >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [70/75] Windows Logs...',
+            'del /f /s /q "C:\Windows\Logs\*" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [71/75] Prefetch...',
+            'del /f /s /q "C:\Windows\Prefetch\*" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [72/75] Crash Dumps...',
+            'del /f /s /q "C:\Windows\Minidump\*" >nul 2>&1',
+            'del /f /q "C:\Windows\MEMORY.DMP" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [73/75] Thumbnail Cache...',
+            'del /f /s /q "%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*" >nul 2>&1',
+            'echo   [OK] DELETED',
+            'echo   [74/75] DNS Cache...',
+            'ipconfig /flushdns >nul 2>&1',
+            'echo   [OK] FLUSHED',
+            'echo   [75/75] Recycle Bin...',
+            'rd /s /q "C:\$Recycle.Bin" >nul 2>&1',
+            'echo   [OK] EMPTIED',
+            'echo.',
+            'echo ===========================================================',
+            'echo               CLEANUP COMPLETE - 75/75 ITEMS',
+            'echo ===========================================================',
+            'echo.',
+            'echo   REBOOT RECOMMENDED',
+            'echo.',
+            'echo   Press any key to exit...',
+            'pause >nul'
           )
-          echo        [SERVICES STOPPED]
-          echo.
-          :: ============================================================
-          :: PHASE 2: KILL LOCKING PROCESSES
-          :: ============================================================
-          echo [PHASE 2] Killing locking processes...
-          for %%p in (devenv dotnet mongod mongosh postgres mysql sqlservr firefox unity iisexpress camake java javaw node npm pip python ruby perl git docker redis elasticsearch Rscript Fabric) do (
-              taskkill /F /IM "%%p.exe" >nul 2>&1
-          )
-          echo        [PROCESSES KILLED]
-          echo.
-          :: ============================================================
-          :: PART 1: HEAVY PROGRAMS (~76 GB)
-          :: ============================================================
-          echo --- PART 1: HEAVY PROGRAMS ---
-          echo.
-          echo [1/28] Deleting Microsoft Visual Studio...
-          if exist "C:\Program Files\Microsoft Visual Studio" (
-              takeown /F "C:\Program Files\Microsoft Visual Studio" /R /A >nul 2>&1
-              icacls "C:\Program Files\Microsoft Visual Studio" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Microsoft Visual Studio" 2>nul
-              if not exist "C:\Program Files\Microsoft Visual Studio" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [2/28] Deleting Android SDK...
-          if exist "C:\Program Files (x86)\Android" (
-              takeown /F "C:\Program Files (x86)\Android" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\Android" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\Android" 2>nul
-              if not exist "C:\Program Files (x86)\Android" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          if exist "C:\Android" (
-              takeown /F "C:\Android" /R /A >nul 2>&1
-              icacls "C:\Android" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Android" 2>nul
-              echo        C:\Android [DELETED]
-          )
-          echo.
-          echo [3/28] Deleting dotnet SDK...
-          if exist "C:\Program Files\dotnet" (
-              takeown /F "C:\Program Files\dotnet" /R /A >nul 2>&1
-              icacls "C:\Program Files\dotnet" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\dotnet" 2>nul
-              if not exist "C:\Program Files\dotnet" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          if exist "C:\Program Files (x86)\dotnet" (
-              takeown /F "C:\Program Files (x86)\dotnet" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\dotnet" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\dotnet" 2>nul
-              echo        (x86) [DELETED]
-          )
-          echo.
-          echo [4/28] Deleting GitHub hostedtoolcache...
-          if exist "C:\hostedtoolcache" (
-              takeown /F "C:\hostedtoolcache" /R /A >nul 2>&1
-              icacls "C:\hostedtoolcache" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\hostedtoolcache" 2>nul
-              if not exist "C:\hostedtoolcache" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [5/28] Deleting ghcup (Haskell)...
-          if exist "C:\ghcup" (
-              takeown /F "C:\ghcup" /R /A >nul 2>&1
-              icacls "C:\ghcup" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\ghcup" 2>nul
-              if not exist "C:\ghcup" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [6/28] Deleting rtools45 (R)...
-          if exist "C:\rtools45" (
-              takeown /F "C:\rtools45" /R /A >nul 2>&1
-              icacls "C:\rtools45" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\rtools45" 2>nul
-              if not exist "C:\rtools45" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          if exist "C:\Program Files\R" (
-              takeown /F "C:\Program Files\R" /R /A >nul 2>&1
-              icacls "C:\Program Files\R" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\R" 2>nul
-              echo        Program Files\R [DELETED]
-          )
-          echo.
-          echo [7/28] Deleting Azure Cosmos DB Emulator...
-          if exist "C:\Program Files\Azure Cosmos DB Emulator" (
-              takeown /F "C:\Program Files\Azure Cosmos DB Emulator" /R /A >nul 2>&1
-              icacls "C:\Program Files\Azure Cosmos DB Emulator" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Azure Cosmos DB Emulator" 2>nul
-              if not exist "C:\Program Files\Azure Cosmos DB Emulator" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [8/28] Deleting LLVM...
-          if exist "C:\Program Files\LLVM" (
-              takeown /F "C:\Program Files\LLVM" /R /A >nul 2>&1
-              icacls "C:\Program Files\LLVM" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\LLVM" 2>nul
-              if not exist "C:\Program Files\LLVM" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [9/28] Deleting MongoDB...
-          if exist "C:\Program Files\MongoDB" (
-              takeown /F "C:\Program Files\MongoDB" /R /A >nul 2>&1
-              icacls "C:\Program Files\MongoDB" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\MongoDB" 2>nul
-              if not exist "C:\Program Files\MongoDB" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          if exist "C:\Program Files\mongosh" (
-              takeown /F "C:\Program Files\mongosh" /R /A >nul 2>&1
-              icacls "C:\Program Files\mongosh" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\mongosh" 2>nul
-              echo        mongosh [DELETED]
-          )
-          :: ============================================================
-          :: PART 2: ADDITIONAL PROGRAMS (~16 GB)
-          :: ============================================================
-          echo.
-          echo --- PART 2: ADDITIONAL PROGRAMS ---
-          echo.
-          echo [10/28] Deleting Windows SDK...
-          if exist "C:\Program Files (x86)\Windows Kits\10" (
-              takeown /F "C:\Program Files (x86)\Windows Kits\10" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\Windows Kits\10" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\Windows Kits\10" 2>nul
-              if not exist "C:\Program Files (x86)\Windows Kits\10" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [11/28] Deleting PostgreSQL 17...
-          if exist "C:\Program Files\PostgreSQL" (
-              takeown /F "C:\Program Files\PostgreSQL" /R /A >nul 2>&1
-              icacls "C:\Program Files\PostgreSQL" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\PostgreSQL" 2>nul
-              if not exist "C:\Program Files\PostgreSQL" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [12/28] Deleting Strawberry Perl...
-          if exist "C:\Strawberry" (
-              takeown /F "C:\Strawberry" /R /A >nul 2>&1
-              icacls "C:\Strawberry" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Strawberry" 2>nul
-              if not exist "C:\Strawberry" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [13/28] Deleting OpenSSL...
-          if exist "C:\Program Files\OpenSSL" (
-              takeown /F "C:\Program Files\OpenSSL" /R /A >nul 2>&1
-              icacls "C:\Program Files\OpenSSL" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\OpenSSL" 2>nul
-              if not exist "C:\Program Files\OpenSSL" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [14/28] Deleting Unity Hub...
-          if exist "C:\Program Files\Unity Hub" (
-              takeown /F "C:\Program Files\Unity Hub" /R /A >nul 2>&1
-              icacls "C:\Program Files\Unity Hub" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Unity Hub" 2>nul
-              if not exist "C:\Program Files\Unity Hub" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [15/28] Deleting Microsoft Azure Service Fabric...
-          if exist "C:\Program Files\Microsoft Service Fabric" (
-              takeown /F "C:\Program Files\Microsoft Service Fabric" /R /A >nul 2>&1
-              icacls "C:\Program Files\Microsoft Service Fabric" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Microsoft Service Fabric" 2>nul
-              if not exist "C:\Program Files\Microsoft Service Fabric" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [16/28] Deleting MySQL Server 8.0...
-          if exist "C:\Program Files\MySQL" (
-              takeown /F "C:\Program Files\MySQL" /R /A >nul 2>&1
-              icacls "C:\Program Files\MySQL" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\MySQL" 2>nul
-              if not exist "C:\Program Files\MySQL" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [17/28] Deleting SQL Server Integration Services...
-          if exist "C:\Program Files (x86)\Microsoft SQL Server" (
-              takeown /F "C:\Program Files (x86)\Microsoft SQL Server" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\Microsoft SQL Server" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\Microsoft SQL Server" 2>nul
-              if not exist "C:\Program Files (x86)\Microsoft SQL Server" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [18/28] Deleting AWS...
-          if exist "C:\Program Files\Amazon" (
-              takeown /F "C:\Program Files\Amazon" /R /A >nul 2>&1
-              icacls "C:\Program Files\Amazon" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Amazon" 2>nul
-              if not exist "C:\Program Files\Amazon" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [19/28] Deleting Mozilla Firefox...
-          if exist "C:\Program Files\Mozilla Firefox" (
-              takeown /F "C:\Program Files\Mozilla Firefox" /R /A >nul 2>&1
-              icacls "C:\Program Files\Mozilla Firefox" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Mozilla Firefox" 2>nul
-              if not exist "C:\Program Files\Mozilla Firefox" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [20/28] Deleting Microsoft SQL Server...
-          if exist "C:\Program Files\Microsoft SQL Server" (
-              takeown /F "C:\Program Files\Microsoft SQL Server" /R /A >nul 2>&1
-              icacls "C:\Program Files\Microsoft SQL Server" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Microsoft SQL Server" 2>nul
-              if not exist "C:\Program Files\Microsoft SQL Server" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [21/28] Deleting WiX Toolset...
-          if exist "C:\Program Files (x86)\WiX Toolset v3.14" (
-              takeown /F "C:\Program Files (x86)\WiX Toolset v3.14" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\WiX Toolset v3.14" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\WiX Toolset v3.14" 2>nul
-              if not exist "C:\Program Files (x86)\WiX Toolset v3.14" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [22/28] Deleting CMake...
-          if exist "C:\Program Files\CMake" (
-              takeown /F "C:\Program Files\CMake" /R /A >nul 2>&1
-              icacls "C:\Program Files\CMake" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\CMake" 2>nul
-              if not exist "C:\Program Files\CMake" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [23/28] Deleting R for Windows...
-          if exist "C:\Program Files\R" (
-              takeown /F "C:\Program Files\R" /R /A >nul 2>&1
-              icacls "C:\Program Files\R" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\R" 2>nul
-              if not exist "C:\Program Files\R" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [24/28] Deleting ImageMagick...
-          if exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" (
-              takeown /F "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" /R /A >nul 2>&1
-              icacls "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" 2>nul
-              if not exist "C:\Program Files\ImageMagick-7.1.2-Q16-HDRI" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [25/28] Deleting IIS Express...
-          if exist "C:\Program Files\IIS Express" (
-              takeown /F "C:\Program Files\IIS Express" /R /A >nul 2>&1
-              icacls "C:\Program Files\IIS Express" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\IIS Express" 2>nul
-              if not exist "C:\Program Files\IIS Express" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [26/28] Deleting Android (remaining)...
-          if exist "C:\Program Files\Android" (
-              takeown /F "C:\Program Files\Android" /R /A >nul 2>&1
-              icacls "C:\Program Files\Android" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Android" 2>nul
-              if not exist "C:\Program Files\Android" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [27/28] Deleting MSBuild...
-          if exist "C:\Program Files (x86)\MSBuild" (
-              takeown /F "C:\Program Files (x86)\MSBuild" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\MSBuild" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\MSBuild" 2>nul
-              if not exist "C:\Program Files (x86)\MSBuild" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [28/28] Deleting Reference Assemblies...
-          if exist "C:\Program Files (x86)\Reference Assemblies" (
-              takeown /F "C:\Program Files (x86)\Reference Assemblies" /R /A >nul 2>&1
-              icacls "C:\Program Files (x86)\Reference Assemblies" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files (x86)\Reference Assemblies" 2>nul
-              if not exist "C:\Program Files (x86)\Reference Assemblies" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          :: ============================================================
-          :: PART 3: PACKAGE MANAGER CACHES
-          :: ============================================================
-          echo.
-          echo --- PART 3: PACKAGE MANAGER CACHES ---
-          echo.
-          echo [29/35] Deleting Chocolatey Cache...
-          if exist "C:\ProgramData\chocolatey" (
-              takeown /F "C:\ProgramData\chocolatey" /R /A >nul 2>&1
-              icacls "C:\ProgramData\chocolatey" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\ProgramData\chocolatey" 2>nul
-              if not exist "C:\ProgramData\chocolatey" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [30/35] Deleting Package Cache...
-          if exist "C:\ProgramData\Package Cache" (
-              takeown /F "C:\ProgramData\Package Cache" /R /A >nul 2>&1
-              icacls "C:\ProgramData\Package Cache" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\ProgramData\Package Cache" 2>nul
-              if not exist "C:\ProgramData\Package Cache" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [31/35] Deleting npm Cache...
-          if exist "%LOCALAPPDATA%\npm-cache" (
-              rd /s /q "%LOCALAPPDATA%\npm-cache" 2>nul
-              echo        [DELETED]
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [32/35] Deleting pip Cache...
-          if exist "%LOCALAPPDATA%\pip\Cache" (
-              rd /s /q "%LOCALAPPDATA%\pip\Cache" 2>nul
-              echo        [DELETED]
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [33/35] Deleting Chocolatey Temp...
-          if exist "%TEMP%\chocolatey" (
-              rd /s /q "%TEMP%\chocolatey" 2>nul
-              echo        [DELETED]
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [34/35] Deleting npm Global...
-          if exist "%APPDATA%\npm" (
-              rd /s /q "%APPDATA%\npm" 2>nul
-              echo        [DELETED]
-          ) else (echo        [NOT FOUND - SKIPPED])
-          echo.
-          echo [35/35] Deleting Google Chrome...
-          if exist "C:\Program Files\Google\Chrome" (
-              takeown /F "C:\Program Files\Google\Chrome" /R /A >nul 2>&1
-              icacls "C:\Program Files\Google\Chrome" /grant Everyone:F /T /Q >nul 2>&1
-              rd /s /q "C:\Program Files\Google\Chrome" 2>nul
-              if not exist "C:\Program Files\Google\Chrome" (echo        [DELETED]) else (echo        [FAILED])
-          ) else (echo        [NOT FOUND - SKIPPED])
-          :: ============================================================
-          :: PART 4: WINDOWS JUNK FILES
-          :: ============================================================
-          echo.
-          echo --- PART 4: WINDOWS JUNK FILES ---
-          echo.
-          echo [36/42] Clearing Windows Temp...
-          if exist "C:\Windows\Temp" (
-              del /f /s /q "C:\Windows\Temp\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          echo.
-          echo [37/42] Clearing User Temp...
-          if exist "%TEMP%" (
-              del /f /s /q "%TEMP%\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          echo.
-          echo [38/42] Clearing Windows Update Cache...
-          net stop wuauserv >nul 2>&1
-          if exist "C:\Windows\SoftwareDistribution\Download" (
-              del /f /s /q "C:\Windows\SoftwareDistribution\Download\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          net start wuauserv >nul 2>&1
-          echo.
-          echo [39/42] Clearing Windows Logs...
-          if exist "C:\Windows\Logs" (
-              del /f /s /q "C:\Windows\Logs\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          echo.
-          echo [40/42] Clearing Crash Dumps...
-          if exist "C:\Windows\Minidump" (
-              del /f /s /q "C:\Windows\Minidump\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          del /f /q "C:\Windows\MEMORY.DMP" >nul 2>&1
-          echo.
-          echo [41/42] Clearing Windows Error Reporting...
-          if exist "C:\ProgramData\Microsoft\Windows\WER" (
-              del /f /s /q "C:\ProgramData\Microsoft\Windows\WER\*" >nul 2>&1
-              echo        [CLEARED]
-          )
-          echo.
-          echo [42/42] Cleaning Large MSI Files...
-          for %%f in ("C:\Windows\Installer\*.msi") do (
-              if %%~zf gtr 52428800 (
-                  del /f /q "%%f" >nul 2>&1
-              )
-          )
-          echo        [CLEARED]
-          :: ============================================================
-          :: PHASE 5: CLEAR DNS + THUMBNAILS + RECYCLE BIN
-          :: ============================================================
-          echo.
-          echo --- PHASE 5: FINAL CLEANUP ---
-          echo.
-          echo Clearing DNS Cache...
-          ipconfig /flushdns >nul 2>&1
-          echo        [CLEARED]
-          echo.
-          echo Clearing Thumbnail Cache...
-          del /f /s /q "%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*" >nul 2>&1
-          echo        [CLEARED]
-          echo.
-          echo Emptying Recycle Bin...
-          rd /s /q "C:\$Recycle.Bin" >nul 2>&1
-          echo        [EMPTIED]
-          :: ============================================================
-          :: CLEANUP COMPLETE
-          :: ============================================================
-          echo.
-          echo ============================================================
-          echo   DEEP CLEANUP COMPLETE! ALL 42 ITEMS PROCESSED.
-          echo ============================================================
-          echo.
-          echo   Checking free space...
-          echo.
-          for /f "tokens=2 delims==" %%a in ('wmic logicaldisk where "DeviceID='C:'" get FreeSpace /value ^| findstr "="') do set /a "freeGB=%%a / 1073741824"
-          echo   C: Drive Free Space: %freeGB% GB
-          echo.
-          echo   REBOOT RECOMMENDED for changes to take full effect.
-          echo.
-          echo   Press any key to exit...
-          pause >nul
-          "@
-          $script | Out-File "$desktop\CLEANUP-DEEP.bat" -Encoding ASCII -Force
+          $lines | Out-File "$desktop\CLEANUP-DEEP.bat" -Encoding ASCII -Force
           Write-Host "Deep cleanup script saved to: $desktop\CLEANUP-DEEP.bat"
+
+      - name: Save Dark Mode + Wallpaper Script
+        shell: pwsh
+        run: |
+          $desktop = "$env:SystemDrive\Users\Public\Desktop"
+          $dmLines = @(
+            '# ============================================',
+            '# DARK MODE + MEGA WALLPAPER SETUP',
+            '# ============================================',
+            '$ErrorActionPreference = "Stop"',
+            '$downloadDir = "$env:USERPROFILE\Downloads\Wallpaper"',
+            '',
+            'Write-Host "DARK MODE ENABLE..." -ForegroundColor Yellow',
+            'try {',
+            '    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue',
+            '    Start-Sleep -Seconds 2',
+            '    $personalizePath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"',
+            '    $dwmPath = "HKCU:\SOFTWARE\Microsoft\Windows\DWM"',
+            '    @($personalizePath, $dwmPath) | ForEach-Object {',
+            '        if (!(Test-Path $_)) { New-Item -Path $_ -Force | Out-Null }',
+            '    }',
+            '    Set-ItemProperty -Path $personalizePath -Name "AppsUseLightTheme" -Value 0 -Type DWord',
+            '    Set-ItemProperty -Path $personalizePath -Name "SystemUsesLightTheme" -Value 0 -Type DWord',
+            '    Set-ItemProperty -Path $dwmPath -Name "ColorizationColor" -Value 0xc4000000 -Type DWord',
+            '    Set-ItemProperty -Path $dwmPath -Name "AccentColor" -Value 0xc40078d4 -Type DWord',
+            '    Start-Process explorer.exe',
+            '    Start-Sleep -Seconds 3',
+            '    Write-Host "[OK] Dark Mode ON!" -ForegroundColor Green',
+            '} catch {',
+            '    Write-Host "[ERROR] $_" -ForegroundColor Red',
+            '}',
+            '',
+            'Write-Host "DOWNLOAD WALLPAPER FROM MEGA..." -ForegroundColor Yellow',
+            'if (!(Test-Path $downloadDir)) {',
+            '    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null',
+            '}',
+            '$megaUrl = "https://mega.nz/file/SlZmQTbD#4swUe2t-vB_jHNEW1hSubFGsUre3B6bmUFurESgXhcg"',
+            '$megaScript = "import os, sys; from mega import Mega; from PIL import Image; mega = Mega(); m = mega.login(); url = sys.argv[1]; output_dir = sys.argv[2]; print(''Downloading from Mega...''); file = m.find(url.split(''/'')[-1]); filepath = m.download(file, output_dir); print(f''Downloaded: {filepath}''); img = Image.open(filepath); img = img.convert(''RGB'') if img.mode in [''RGBA'', ''P'', ''LA''] else img; jpg_path = os.path.join(output_dir, ''wallpaper.jpg''); img.save(jpg_path, ''JPEG'', quality=95); print(f''Converted: {jpg_path}''); print(jpg_path)"',
+            '$megaScript | Out-File -FilePath "$env:TEMP\mega_dl.py" -Encoding UTF8',
+            '$result = python "$env:TEMP\mega_dl.py" $megaUrl $downloadDir 2>&1',
+            '$imagePath = $null',
+            '$lastLine = ($result | Select-Object -Last 1).ToString().Trim()',
+            'if (Test-Path $lastLine) { $imagePath = $lastLine }',
+            'else {',
+            '    $img = Get-ChildItem -Path $downloadDir -Include *.jpg,*.jpeg,*.png -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1',
+            '    if ($img) { $imagePath = $img.FullName }',
+            '}',
+            '',
+            'Write-Host "SET WALLPAPER..." -ForegroundColor Yellow',
+            'if ($imagePath -and (Test-Path $imagePath)) {',
+            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $imagePath',
+            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0"',
+            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "2"',
+            '    RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True',
+            '    Write-Host "[OK] Wallpaper SET!" -ForegroundColor Green',
+            '} else {',
+            '    Write-Host "[ERROR] Image not found!" -ForegroundColor Red',
+            '}',
+            'Write-Host "COMPLETE!" -ForegroundColor Cyan'
+          )
+          $dmLines | Out-File "$desktop\SETUP-DARKMODE-WALLPAPER.ps1" -Encoding UTF8 -Force
+          Write-Host "Dark mode + wallpaper script saved to: $desktop\SETUP-DARKMODE-WALLPAPER.ps1"
 
       - name: Create User & Set Password
         shell: pwsh
@@ -517,66 +432,6 @@ jobs:
           Set-ItemProperty -Path $advPath -Name 'IconsOnly' -Value 1 -Force
           Set-ItemProperty -Path $advPath -Name 'ListThreshold' -Value 1 -Force
           Set-ItemProperty -Path $advPath -Name 'ThumbnailSize' -Value 32 -Force
-
-          Write-Host "=== SAVE DARK MODE + WALLPAPER SCRIPT TO DESKTOP ==="
-          $desktop = "$env:SystemDrive\Users\Public\Desktop"
-          $scriptLines = @(
-            '# ============================================',
-            '# DARK MODE + MEGA WALLPAPER SETUP',
-            '# ============================================',
-            '$ErrorActionPreference = "Stop"',
-            '$downloadDir = "$env:USERPROFILE\Downloads\Wallpaper"',
-            '',
-            'Write-Host "DARK MODE ENABLE..." -ForegroundColor Yellow',
-            'try {',
-            '    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue',
-            '    Start-Sleep -Seconds 2',
-            '    $personalizePath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"',
-            '    $dwmPath = "HKCU:\SOFTWARE\Microsoft\Windows\DWM"',
-            '    @($personalizePath, $dwmPath) | ForEach-Object {',
-            '        if (!(Test-Path $_)) { New-Item -Path $_ -Force | Out-Null }',
-            '    }',
-            '    Set-ItemProperty -Path $personalizePath -Name "AppsUseLightTheme" -Value 0 -Type DWord',
-            '    Set-ItemProperty -Path $personalizePath -Name "SystemUsesLightTheme" -Value 0 -Type DWord',
-            '    Set-ItemProperty -Path $dwmPath -Name "ColorizationColor" -Value 0xc4000000 -Type DWord',
-            '    Set-ItemProperty -Path $dwmPath -Name "AccentColor" -Value 0xc40078d4 -Type DWord',
-            '    Start-Process explorer.exe',
-            '    Start-Sleep -Seconds 3',
-            '    Write-Host "[OK] Dark Mode ON!" -ForegroundColor Green',
-            '} catch {',
-            '    Write-Host "[ERROR] $_" -ForegroundColor Red',
-            '}',
-            '',
-            'Write-Host "DOWNLOAD WALLPAPER FROM MEGA..." -ForegroundColor Yellow',
-            'if (!(Test-Path $downloadDir)) {',
-            '    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null',
-            '}',
-            '$megaUrl = "https://mega.nz/file/SlZmQTbD#4swUe2t-vB_jHNEW1hSubFGsUre3B6bmUFurESgXhcg"',
-            '$megaScript = "import os, sys; from mega import Mega; from PIL import Image; mega = Mega(); m = mega.login(); url = sys.argv[1]; output_dir = sys.argv[2]; print(''Downloading from Mega...''); file = m.find(url.split(''/'')[-1]); filepath = m.download(file, output_dir); print(f''Downloaded: {filepath}''); img = Image.open(filepath); img = img.convert(''RGB'') if img.mode in [''RGBA'', ''P'', ''LA''] else img; jpg_path = os.path.join(output_dir, ''wallpaper.jpg''); img.save(jpg_path, ''JPEG'', quality=95); print(f''Converted: {jpg_path}''); print(jpg_path)"',
-            '$megaScript | Out-File -FilePath "$env:TEMP\mega_dl.py" -Encoding UTF8',
-            '$result = python "$env:TEMP\mega_dl.py" $megaUrl $downloadDir 2>&1',
-            '$imagePath = $null',
-            '$lastLine = ($result | Select-Object -Last 1).ToString().Trim()',
-            'if (Test-Path $lastLine) { $imagePath = $lastLine }',
-            'else {',
-            '    $img = Get-ChildItem -Path $downloadDir -Include *.jpg,*.jpeg,*.png -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1',
-            '    if ($img) { $imagePath = $img.FullName }',
-            '}',
-            '',
-            'Write-Host "SET WALLPAPER..." -ForegroundColor Yellow',
-            'if ($imagePath -and (Test-Path $imagePath)) {',
-            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $imagePath',
-            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0"',
-            '    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "2"',
-            '    RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True',
-            '    Write-Host "[OK] Wallpaper SET!" -ForegroundColor Green',
-            '} else {',
-            '    Write-Host "[ERROR] Image not found!" -ForegroundColor Red',
-            '}',
-            'Write-Host "COMPLETE!" -ForegroundColor Cyan'
-          )
-          $scriptLines | Out-File "$desktop\SETUP-DARKMODE-WALLPAPER.ps1" -Encoding UTF8 -Force
-          Write-Host "Script saved to: $desktop\SETUP-DARKMODE-WALLPAPER.ps1"
           Write-Host "=== DISABLE HEAVY SERVICES ==="
           $servicesToDisable = @('SysMain','DiagTrack','diagnosticshub.standardcollector.service','dmwappushservice','MapsBroker','lfsvc','SharedAccess','RemoteRegistry','XblAuthManager','XblGameSave','XboxGipSvc','wuauserv','BITS')
           foreach ($svc in $servicesToDisable) {
@@ -673,48 +528,7 @@ jobs:
           Write-Host "  PASSWORD : $p"
           Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
           Write-Host ""
-
-          # Create desktop shortcut with credentials
-          $desktop = "$env:SystemDrive\Users\Public\Desktop"
-          $credFile = "$desktop\RDP-CREDENTIALS.txt"
-          @"
-          ========================================
-            RDP LOGIN CREDENTIALS
-          ========================================
-          Address  : $boreAddress
-          Username : $u
-          Password : $p
-          ========================================
-          Free Space: ${freeGB} GB
-          ========================================
-          NOTE: CLEANUP SCRIPT on Desktop!
-          Run CLEANUP-DEEP.bat to free ~115GB
-          ========================================
-          "@ | Out-File $credFile -Encoding UTF8 -Force
-
-          # Create a VBScript popup to show credentials on RDP login
-          $vbsPopup = @"
-          Set objShell = CreateObject("WScript.Shell")
-          msgbox "RDP CREDENTIALS" & vbCrLf & vbCrLf & _
-                 "Address: $boreAddress" & vbCrLf & _
-                 "Username: $u" & vbCrLf & _
-                 "Password: $p" & vbCrLf & vbCrLf & _
-                 "Also saved to: RDP-CREDENTIALS.txt on Desktop", 64, "RDP Connection Info"
-          "@
-          $vbsFile = "$env:TEMP\show-credentials.vbs"
-          $vbsPopup | Out-File $vbsFile -Encoding ASCII -Force
-
-          # Add to startup for first login
-          $startupFolder = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
-          Copy-Item $vbsFile "$startupFolder\show-credentials.vbs" -Force
-
-          # Also add RunOnce for current user
-          $runOncePath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
-          New-ItemProperty -Path $runOncePath -Name 'ShowRDP' -Value "wscript.exe `"$vbsFile`"" -PropertyType String -Force | Out-Null
-
-          Write-Host ""
-          Write-Host "=== CREDENTIALS SAVED TO DESKTOP ==="
-          Write-Host "File: $credFile"
+          Write-Host "Desktop pe: CLEANUP-DEEP.bat + SETUP-DARKMODE-WALLPAPER.ps1"
           Write-Host ""
           Write-Host "Tunnel LIVE - keeping alive 6 hours..."
           while ($true) {
