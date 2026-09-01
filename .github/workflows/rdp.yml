@@ -463,6 +463,201 @@ jobs:
           netsh interface tcp set global autotuninglevel=disabled | Out-Null
           Write-Host "=== AGGRESSIVE RDP OPTIMIZATION DONE ==="
 
+      - name: Ultra RDP Optimization (Smooth)
+        shell: pwsh
+        run: |
+          Write-Host "=== ULTRA RDP SMOOTH OPTIMIZATION ==="
+
+          Write-Host "[1/12] Disable Windows Defender completely..."
+          try {
+            Set-MpPreference -DisableRealtimeMonitoring $true
+            Set-MpPreference -DisableBehaviorMonitoring $true
+            Set-MpPreference -DisableIOAVProtection $true
+            Set-MpPreference -DisableScriptScanning $true
+            Set-MpPreference -DisableBlockAtFirstSeen $true
+            Set-MpPreference -DisableIntrusionPreventionSystem $true
+            Set-MpPreference -SubmitSamplesConsent 2
+            Set-MpPreference -MAPSReporting Disabled
+            Stop-Service -Name WinDefend -Force -ErrorAction SilentlyContinue
+            Set-Service -Name WinDefend -StartupType Disabled -ErrorAction SilentlyContinue
+            Stop-Service -Name WdNisSvc -Force -ErrorAction SilentlyContinue
+            Set-Service -Name WdNisSvc -StartupType Disabled -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Defender OFF"
+          } catch { Write-Host "  [WARN] Defender partial" }
+
+          Write-Host "[2/12] Kill ALL heavy processes..."
+          $heavy = @(
+            'OneDrive','MicrosoftEdge','msedge','Teams','TeamsPlaywright','Outlook',
+            'SearchApp','SearchHost','RuntimeBroker','ShellExperienceHost',
+            'StartMenuExperienceHost','TextInputHost','SecurityHealthService',
+            'NisSrv','SgrmBroker','spoolsv','SearchIndexer','WmiPrvSE',
+            'dismhost','sihost','taskhostw','ctfmon','consent',
+            'ApplicationFrameHost','LockApp','YourPhone','PhoneExperienceHost',
+            'GameBar','GameBarPresenceWriter','Xbox.TCUI','XboxGipSvc'
+          )
+          foreach ($proc in $heavy) {
+            Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
+          }
+          Write-Host "  [OK] Heavy processes killed"
+
+          Write-Host "[3/12] Disable ALL unnecessary services..."
+          $disableServices = @(
+            'SysMain','DiagTrack','diagnosticshub.standardcollector.service',
+            'dmwappushservice','MapsBroker','lfsvc','SharedAccess','RemoteRegistry',
+            'XblAuthManager','XblGameSave','XboxGipSvc','wuauserv','BITS',
+            'WSearch','PcaSvc','TrkWks','SysMain','wscsvc',
+            'RemoteRegistry','WMPNetworkSvc','XblAuthManager',
+            'WpnService','WalletService','TabletInputService',
+            'TrustedInstaller','tiworker','UsoSvc','DoSvc',
+            'BthServ','bthserv','InstallService','PhoneSvc',
+            'ScDeviceEnum','SCardSvr','ScPolicySvc','SNMPTRAP',
+            'TapiSrv','TlntSvr','TlntSVr','W3SVC','WAS',
+            'WMSvc','WpcMonSvc','WPDBusEnum','WwanSvc','XblAuthManager',
+            'AJRouter','BDESVC','BFE','wbengine','BITS',
+            'BluetoothUserService','CDPSvc','CDPUserSvc',
+            'cmidxps','DPS','DusmSvc','EFS','EventLog',
+            'Fax','FDResPub','FDPHost','FontCache','hidserv',
+            'icssvc','IpxmdlCfg','iphlpsvc','LanmanServer',
+            'LanmanWorkstation','lfsvc','lltdsvc','MBAMProtector',
+            'MSDTC','NaturalAuthentication','Netlogon','NetSetupSvc',
+            'NlaSvc','RasMan','RasAuto','SessionEnv',
+            'TermService','UmRdpService','SCardSvr','SCPolicySvc',
+            'SNMP','SNMPTRAP','TapiSrv','WbioSrvc',
+            'Wcmsvc','Wcmsvc','WcsPlugInService','WdNisSvc',
+            'Wecsvc','WerSvc','Wecsvc','WEPHOSTSVC',
+            'WinDefend','WlanSvc','wmiApSrv','WMPNetworkSvc',
+            'WpnUserService','XblAuthManager','XblGameSave','XboxGipSvc',
+            'edgeupdate','edgeupdatem','MicrosoftEdgeElevationService',
+            'MicrosoftEdgeUpdate'
+          )
+          foreach ($svc in $disableServices) {
+            Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $svc -StartupType Disabled -ErrorAction SilentlyContinue
+          }
+          Write-Host "  [OK] Services disabled"
+
+          Write-Host "[4/12] Disable scheduled tasks..."
+          $tasks = @(
+            '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser',
+            '\Microsoft\Windows\Application Experience\ProgramDataUpdater',
+            '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
+            '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip',
+            '\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector',
+            '\Microsoft\Windows\Feedback\Siuf\DmClient',
+            '\Microsoft\Windows\Maps\MapsUpdateTask',
+            '\Microsoft\Windows\Maps\MapsToastTask',
+            '\Microsoft\Windows\Maintenance\WinSAT',
+            '\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem',
+            '\Microsoft\Windows\Shell\FamilySafetyMonitor',
+            '\Microsoft\Windows\Shell\FamilySafetyRefreshTask',
+            '\Microsoft\Windows\Windows Error Reporting\QueueReporting',
+            '\Microsoft\Windows\WindowsUpdate\Scheduled Start',
+            '\Microsoft\XblGameSave\XblGameSaveTask'
+          )
+          foreach ($task in $tasks) {
+            schtasks /Change /TN $task /Disable -ErrorAction SilentlyContinue
+          }
+          Write-Host "  [OK] Scheduled tasks disabled"
+
+          Write-Host "[5/12] Kill Explorer (use Task Manager or cmd)..."
+          Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+
+          Write-Host "[6/12] Set FULL Best Performance visual settings..."
+          $visPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
+          Set-ItemProperty -Path $visPath -Name 'VisualFXSetting' -Value 2 -Force
+          $advPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+          Set-ItemProperty -Path $advPath -Name 'TaskbarAnimations' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'ListviewShadow' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'IconsOnly' -Value 1 -Force
+          Set-ItemProperty -Path $advPath -Name 'ListThreshold' -Value 1 -Force
+          Set-ItemProperty -Path $advPath -Name 'ThumbnailSize' -Value 16 -Force
+          Set-ItemProperty -Path $advPath -Name 'TaskbarSmallIcons' -Value 1 -Force
+          Set-ItemProperty -Path $advPath -Name 'ShowTaskViewButton' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'ShowCortanaButton' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'TaskbarMn' -Value 0 -Force
+          Set-ItemProperty -Path $advPath -Name 'TaskbarDa' -Value 0 -Force
+          $menuDelay = 'HKCU:\Control Panel\Desktop'
+          Set-ItemProperty -Path $menuDelay -Name 'MenuShowDelay' -Value '0' -Force
+          Set-ItemProperty -Path $menuDelay -Name 'DragFullWindows' -Value '0' -Force
+          Set-ItemProperty -Path $menuDelay -Name 'FontSmoothing' -Value '0' -Force
+          Set-ItemProperty -Path $menuDelay -Name 'UserPreferencesMask' -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)) -Force
+          Write-Host "  [OK] Visual effects minimized"
+
+          Write-Host "[7/12] Disable Desktop Wallpaper & Theme..."
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value '' -Force
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '0' -Force
+          $themePath = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          if (-not (Test-Path $themePath)) { New-Item -Path $themePath -Force | Out-Null }
+          Set-ItemProperty -Path $themePath -Name 'AppsUseLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $themePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $themePath -Name 'EnableTransparency' -Value 0 -Force
+          $dwmPath = 'HKCU:\SOFTWARE\Microsoft\Windows\DWM'
+          if (-not (Test-Path $dwmPath)) { New-Item -Path $dwmPath -Force | Out-Null }
+          Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'EnableAeroPeek' -Value 0 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'AlwaysHibernateThumbnails' -Value 0 -Force
+          Write-Host "  [OK] Wallpaper OFF, Theme Dark, Transparency OFF"
+
+          Write-Host "[8/12] RDP Low Color + No Compression..."
+          $rdpTcp = 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+          Set-ItemProperty -Path $rdpTcp -Name 'ColorDepth' -Value 4 -Force
+          Set-ItemProperty -Path $rdpTcp -Name 'MinEncryptionLevel' -Value 1 -Force
+          $tsPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+          if (-not (Test-Path $tsPath)) { New-Item -Path $tsPath -Force | Out-Null }
+          New-ItemProperty -Path $tsPath -Name 'AVC444ModePreferred' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCHardwareEncodePreferred' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'AVCPreferredProfile' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'bEnumerateHWBeforeSW' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'fEnableRemoteFXAdvancedRemoteApp' -Value 0 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'SelectTransport' -Value 1 -PropertyType DWord -Force
+          New-ItemProperty -Path $tsPath -Name 'MaxInstanceCount' -Value 99 -PropertyType DWord -Force
+          Write-Host "  [OK] RDP optimized"
+
+          Write-Host "[9/12] Network Low Latency..."
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency' -Value 1 -Force
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TCPNoDelay' -Value 1 -Force
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpDelAckTicks' -Value 0 -Force
+          netsh interface tcp set global autotuninglevel=disabled 2>$null
+          netsh interface tcp set global chimney=disabled 2>$null
+          netsh interface tcp set global dca=disabled 2>$null
+          netsh interface tcp set global netdma=disabled 2>$null
+          netsh interface tcp set global timestamps=disabled 2>$null
+          netsh interface tcp set global rss=enabled 2>$null
+          ipconfig /flushdns 2>$null
+          Write-Host "  [OK] Network optimized"
+
+          Write-Host "[10/12] Disable Firewall + Security..."
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False -ErrorAction SilentlyContinue
+          Stop-Service -Name "mpssvc" -Force -ErrorAction SilentlyContinue
+          Write-Host "  [OK] Firewall OFF"
+
+          Write-Host "[11/12] High Performance Power Plan..."
+          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c 2>$null
+          powercfg /change monitor-timeout-ac 0
+          powercfg /change standby-timeout-ac 0
+          powercfg /change hibernate-timeout-ac 0
+          powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR THROTTLEMAX 100
+          powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100
+          powercfg /setactive SCHEME_CURRENT
+          Write-Host "  [OK] High Performance ON"
+
+          Write-Host "[12/12] Disable GameDVR + Telemetry..."
+          $gamePath = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR'
+          if (-not (Test-Path $gamePath)) { New-Item -Path $gamePath -Force | Out-Null }
+          New-ItemProperty -Path $gamePath -Name 'AppCaptureEnabled' -Value 0 -PropertyType DWord -Force
+          $gameBarPath = 'HKCU:\System\GameConfigStore'
+          if (-not (Test-Path $gameBarPath)) { New-Item -Path $gameBarPath -Force | Out-Null }
+          New-ItemProperty -Path $gameBarPath -Name 'GameDVR_Enabled' -Value 0 -PropertyType DWord -Force
+          $diagPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+          if (-not (Test-Path $diagPath)) { New-Item -Path $diagPath -Force | Out-Null }
+          New-ItemProperty -Path $diagPath -Name 'AllowTelemetry' -Value 0 -PropertyType DWord -Force
+          Write-Host "  [OK] GameDVR + Telemetry OFF"
+
+          Write-Host ""
+          Write-Host "=== ULTRA RDP OPTIMIZATION COMPLETE ==="
+          Write-Host "RDP should be much smoother now!"
+
       - name: Download & Start Bore Tunnel (Silent)
         shell: pwsh
         run: |
