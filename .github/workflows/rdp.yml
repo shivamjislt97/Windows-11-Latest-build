@@ -655,7 +655,7 @@ jobs:
           Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
           Write-Host "  [OK] Dark Mode ON"
 
-          Write-Host "[+] Set Wallpaper from default Windows..."
+          Write-Host "[+] Set Wallpaper for ALL USERS..."
           $finalWp = "C:\Windows\Web\Wallpaper\ThemeA\img20.jpg"
           if (!(Test-Path $finalWp)) {
             $fallback = Get-ChildItem "C:\Windows\Web\Wallpaper" -Include *.jpg,*.png -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -663,15 +663,54 @@ jobs:
           }
           Write-Host "  Using: $finalWp"
 
-          $personalizePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-          if (-not (Test-Path $personalizePath)) { New-Item -Path $personalizePath -Force | Out-Null }
-          Set-ItemProperty -Path $personalizePath -Name 'AppsUseLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path $personalizePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+          Write-Host "  Setting in HKLM (All Users)..."
+          $defDesktop = 'Registry::HKEY_USERS\.DEFAULT\Control Panel\Desktop'
+          if (Test-Path $defDesktop) {
+            Set-ItemProperty -Path $defDesktop -Name 'WallPaper' -Value $finalWp -Force
+            Set-ItemProperty -Path $defDesktop -Name 'TileWallpaper' -Value '0' -Force
+            Set-ItemProperty -Path $defDesktop -Name 'WallpaperStyle' -Value '2' -Force
+            Write-Host "  [OK] Default user wallpaper set"
+          }
 
+          Write-Host "  Setting in HKCU (current + future users)..."
           Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value $finalWp -Force
           Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
           Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '2' -Force
 
+          Write-Host "  Copying wallpaper to Public Desktop..."
+          $publicWp = "C:\Users\Public\Pictures\wallpaper.jpg"
+          Copy-Item -Path $finalWp -Destination $publicWp -Force -ErrorAction SilentlyContinue
+
+          Write-Host "  Setting via NTUSER.DAT for mastertech user..."
+          $ntuser = "C:\Users\mastertech\NTUSER.DAT"
+          if (Test-Path $ntuser) {
+            reg load "HKLM\MastertechUser" $ntuser 2>$null
+            $mPath = "Registry::HKLM\MastertechUser\Control Panel\Desktop"
+            if (-not (Test-Path $mPath)) { New-Item -Path $mPath -Force | Out-Null }
+            Set-ItemProperty -Path $mPath -Name 'WallPaper' -Value $finalWp -Force
+            Set-ItemProperty -Path $mPath -Name 'TileWallpaper' -Value '0' -Force
+            Set-ItemProperty -Path $mPath -Name 'WallpaperStyle' -Value '2' -Force
+            reg unload "HKLM\MastertechUser" 2>$null
+            Write-Host "  [OK] mastertech NTUSER.DAT wallpaper set"
+          } else {
+            Write-Host "  [WARN] NTUSER.DAT not found, copying default profile..."
+            $defaultProfile = "C:\Users\Default"
+            if (!(Test-Path $defaultProfile)) { New-Item -ItemType Directory -Path $defaultProfile -Force | Out-Null }
+            $defDeskPath = "$defaultProfile\NTUSER.DAT"
+            if (Test-Path "C:\Windows\System32\Config\Default") {
+              Copy-Item "C:\Windows\System32\Config\Default" $defDeskPath -Force -ErrorAction SilentlyContinue
+              reg load "HKLM\DefaultUser" $defDeskPath 2>$null
+              $dPath = "Registry::HKLM\DefaultUser\Control Panel\Desktop"
+              if (-not (Test-Path $dPath)) { New-Item -Path $dPath -Force | Out-Null }
+              Set-ItemProperty -Path $dPath -Name 'WallPaper' -Value $finalWp -Force
+              Set-ItemProperty -Path $dPath -Name 'TileWallpaper' -Value '0' -Force
+              Set-ItemProperty -Path $dPath -Name 'WallpaperStyle' -Value '2' -Force
+              reg unload "HKLM\DefaultUser" 2>$null
+              Write-Host "  [OK] Default profile wallpaper set"
+            }
+          }
+
+          Write-Host "  Setting via SystemParametersInfo..."
           $wpLines = @(
             'using System;',
             'using System.Runtime.InteropServices;',
@@ -684,11 +723,6 @@ jobs:
           Add-Type -TypeDefinition $wpCode -ErrorAction SilentlyContinue
           [Wallpaper]::SystemParametersInfo(0x0014, 0, $finalWp, 0x0001 -bor 0x0002 -bor 0x0100) | Out-Null
           Write-Host "  [OK] Wallpaper SET via SystemParametersInfo"
-
-          $themeIni = "C:\Windows\Resources\Themes\aero\aero.theme"
-          if (Test-Path $themeIni) {
-            try { Start-Process "rundll32.exe" -ArgumentList "shell32.dll,Control_RunDLL desk.cpl,,1" -Wait -ErrorAction SilentlyContinue } catch {}
-          }
 
           Write-Host ""
           Write-Host "=== ULTRA RDP OPTIMIZATION COMPLETE ==="
