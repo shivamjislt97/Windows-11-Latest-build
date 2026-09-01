@@ -648,9 +648,38 @@ jobs:
           New-ItemProperty -Path $diagPath -Name 'AllowTelemetry' -Value 0 -PropertyType DWord -Force
           Write-Host "  [OK] GameDVR + Telemetry OFF"
 
+          Write-Host "[+] Enable Dark Mode..."
+          $personalizePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          $dwmPath = 'HKCU:\SOFTWARE\Microsoft\Windows\DWM'
+          if (-not (Test-Path $personalizePath)) { New-Item -Path $personalizePath -Force | Out-Null }
+          if (-not (Test-Path $dwmPath)) { New-Item -Path $dwmPath -Force | Out-Null }
+          Set-ItemProperty -Path $personalizePath -Name 'AppsUseLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $personalizePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'ColorizationColor' -Value 0xc4000000 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'AccentColor' -Value 0xc40078d4 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'EnableTransparency' -Value 0 -Force
+          Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
+          Write-Host "  [OK] Dark Mode ON"
+
+          Write-Host "[+] Download & Set Wallpaper..."
+          $wpDir = "$env:USERPROFILE\Downloads\Wallpaper"
+          if (!(Test-Path $wpDir)) { New-Item -ItemType Directory -Path $wpDir -Force | Out-Null }
+          $wpFile = "$wpDir\Windows11.png"
+          $wpUrl = "https://github.com/shivamjislt97/Windows-11-Latest-build/releases/download/wallpaper-v1/Windows%2011.png"
+          try {
+            Invoke-WebRequest -Uri $wpUrl -OutFile $wpFile -TimeoutSec 30
+            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value $wpFile -Force
+            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
+            Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '2' -Force
+            RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True
+            Write-Host "  [OK] Wallpaper SET"
+          } catch {
+            Write-Host "  [WARN] Wallpaper failed: $_"
+          }
+
           Write-Host ""
           Write-Host "=== ULTRA RDP OPTIMIZATION COMPLETE ==="
-          Write-Host "RDP should be much smoother now!"
+          Write-Host "Dark Mode + Wallpaper + Smooth RDP ready!"
 
       - name: Download & Start Bore Tunnel (Silent)
         shell: pwsh
