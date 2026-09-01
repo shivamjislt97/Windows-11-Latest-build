@@ -498,7 +498,7 @@ jobs:
         shell: pwsh
         run: |
           $u = "mastertech"
-          $p = "Mast3rT3ch@2026!"
+          $p = "Mast3rT3ch@2026Shivamji!"
           Write-Host "=== Downloading Bore ==="
           try {
             $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -TimeoutSec 15
