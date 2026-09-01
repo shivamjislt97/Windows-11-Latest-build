@@ -502,24 +502,23 @@ jobs:
             'SysMain','DiagTrack','diagnosticshub.standardcollector.service',
             'dmwappushservice','MapsBroker','lfsvc','SharedAccess','RemoteRegistry',
             'XblAuthManager','XblGameSave','XboxGipSvc','wuauserv','BITS',
-            'WSearch','PcaSvc','TrkWks','SysMain','wscsvc',
-            'RemoteRegistry','WMPNetworkSvc','XblAuthManager',
+            'WSearch','PcaSvc','TrkWks','wscsvc',
+            'WMPNetworkSvc','XblAuthManager',
             'WpnService','WalletService','TabletInputService',
-            'TrustedInstaller','tiworker','UsoSvc','DoSvc',
             'BthServ','bthserv','InstallService','PhoneSvc',
             'ScDeviceEnum','SCardSvr','ScPolicySvc','SNMPTRAP',
-            'TapiSrv','TlntSvr','TlntSVr','W3SVC','WAS',
-            'WMSvc','WpcMonSvc','WPDBusEnum','WwanSvc','XblAuthManager',
-            'AJRouter','BDESVC','BFE','wbengine','BITS',
+            'TlntSvr','TlntSVr','W3SVC','WAS',
+            'WMSvc','WpcMonSvc','WPDBusEnum','WwanSvc',
+            'AJRouter','BDESVC','BFE','wbengine',
             'BluetoothUserService','CDPSvc','CDPUserSvc',
-            'cmidxps','DPS','DusmSvc','EFS','EventLog',
+            'cmidxps','DPS','DusmSvc','EFS',
             'Fax','FDResPub','FDPHost','FontCache','hidserv',
             'icssvc','IpxmdlCfg','iphlpsvc','LanmanServer',
-            'LanmanWorkstation','lfsvc','lltdsvc','MBAMProtector',
+            'LanmanWorkstation','lltdsvc','MBAMProtector',
             'MSDTC','NaturalAuthentication','Netlogon','NetSetupSvc',
             'NlaSvc','RasMan','RasAuto','SessionEnv',
-            'TermService','UmRdpService','SCardSvr','SCPolicySvc',
-            'SNMP','SNMPTRAP','TapiSrv','WbioSrvc',
+            'SCardSvr','SCPolicySvc',
+            'SNMP','SNMPTRAP','WbioSrvc',
             'Wcmsvc','Wcmsvc','WcsPlugInService','WdNisSvc',
             'Wecsvc','WerSvc','Wecsvc','WEPHOSTSVC',
             'WinDefend','WlanSvc','wmiApSrv','WMPNetworkSvc',
@@ -680,6 +679,39 @@ jobs:
           Write-Host ""
           Write-Host "=== ULTRA RDP OPTIMIZATION COMPLETE ==="
           Write-Host "Dark Mode + Wallpaper + Smooth RDP ready!"
+
+      - name: Verify RDP is Running
+        shell: pwsh
+        run: |
+          Write-Host "=== VERIFYING RDP ==="
+          Start-Service -Name "TermService" -ErrorAction SilentlyContinue
+          Start-Service -Name "UmRdpService" -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          $rdpEnabled = Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -ErrorAction SilentlyContinue
+          if ($rdpEnabled.fDenyTSConnections -eq 0) {
+            Write-Host "[OK] RDP Enabled in registry"
+          } else {
+            Write-Host "[FIX] Enabling RDP..."
+            Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0
+          }
+          $port3389 = Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue
+          if ($port3389) {
+            Write-Host "[OK] Port 3389 is LISTENING"
+          } else {
+            Write-Host "[WARN] Port 3389 not listening, restarting RDP service..."
+            Restart-Service -Name "TermService" -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 5
+            $port3389 = Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue
+            if ($port3389) {
+              Write-Host "[OK] Port 3389 now LISTENING after restart"
+            } else {
+              Write-Host "[ERROR] Port 3389 still not listening!"
+            }
+          }
+          $rdpSvc = Get-Service -Name "TermService" -ErrorAction SilentlyContinue
+          Write-Host "TermService status: $($rdpSvc.Status)"
+          $nla = Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -ErrorAction SilentlyContinue
+          Write-Host "NLA (UserAuthentication): $($nla.UserAuthentication)"
 
       - name: Download & Start Bore Tunnel (Silent)
         shell: pwsh
