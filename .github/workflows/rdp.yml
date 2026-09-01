@@ -517,94 +517,89 @@ jobs:
           Set-ItemProperty -Path $advPath -Name 'IconsOnly' -Value 1 -Force
           Set-ItemProperty -Path $advPath -Name 'ListThreshold' -Value 1 -Force
           Set-ItemProperty -Path $advPath -Name 'ThumbnailSize' -Value 32 -Force
-          Write-Host "=== DOWNLOAD WALLPAPER ==="
-          $wallpaperDir = "C:\Users\Public\Pictures"
-          New-Item -ItemType Directory -Path $wallpaperDir -Force | Out-Null
-          $wallpaperFile = "$wallpaperDir\wallpaper.jpg"
-          $wallpaperUrl = "https://cdn.wallpaperhub.app/cloudcache/0/3/6/b/a/1/036ba136f0cfeea15461196787bc4876b5bd52b9.jpg"
-          try {
-            Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperFile -TimeoutSec 30
-            $size = (Get-Item $wallpaperFile).Length
-            Write-Host "Wallpaper downloaded: $size bytes"
-            if ($size -lt 1000) { throw "File too small" }
-          } catch {
-            Write-Host "Wallpaper download failed: $_"
-            $wallpaperFile = ''
-          }
-          Write-Host "=== APPLY DARK MODE TO DEFAULT PROFILE (for all new users) ==="
-          $defaultSrc = "C:\Users\Default\NTUSER.DAT"
-          $defaultTemp = "$env:TEMP\default_NTUSER.DAT"
-          if (Test-Path $defaultSrc) {
-            Copy-Item $defaultSrc $defaultTemp -Force
-            $loadDef = reg load "HKU\defaultprofile" "$defaultTemp" 2>&1
-            Write-Host "Load default: $loadDef"
-            $themeBase = "Registry::HKEY_USERS\defaultprofile\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-            if (-not (Test-Path $themeBase)) { New-Item -Path $themeBase -Force | Out-Null }
-            Set-ItemProperty -Path $themeBase -Name 'EnableTransparency' -Value 0 -Force
-            Set-ItemProperty -Path $themeBase -Name 'ColorPrevalence' -Value 0 -Force
-            Set-ItemProperty -Path $themeBase -Name 'AppsUseLightTheme' -Value 0 -Force
-            Set-ItemProperty -Path $themeBase -Name 'SystemUsesLightTheme' -Value 0 -Force
-            $deskBase = "Registry::HKEY_USERS\defaultprofile\Control Panel\Desktop"
-            Set-ItemProperty -Path $deskBase -Name 'Wallpaper' -Value $wallpaperFile -Force
-            Set-ItemProperty -Path $deskBase -Name 'TileWallpaper' -Value 0 -Force
-            Set-ItemProperty -Path $deskBase -Name 'WallpaperStyle' -Value 10 -Force
-            $advBase = "Registry::HKEY_USERS\defaultprofile\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-            if (-not (Test-Path $advBase)) { New-Item -Path $advBase -Force | Out-Null }
-            Set-ItemProperty -Path $advBase -Name 'TaskbarSmallIcons' -Value 1 -Force
-            Set-ItemProperty -Path $advBase -Name 'TaskbarAnimations' -Value 0 -Force
-            Set-ItemProperty -Path $advBase -Name 'IconsOnly' -Value 1 -Force
-            $unloadDef = reg unload "HKU\defaultprofile" 2>&1
-            Write-Host "Unload default: $unloadDef"
-            Copy-Item $defaultTemp $defaultSrc -Force
-            Write-Host "Default profile: dark mode + wallpaper applied"
-          } else {
-            Write-Host "Default NTUSER.DAT not found!"
-          }
-          Write-Host "=== APPLY DARK MODE TO $u PROFILE ==="
-          $userDir = "C:\Users\$u"
-          $userHiveTemp = "$env:TEMP\${u}_NTUSER.DAT"
-          New-Item -ItemType Directory -Path $userDir -Force | Out-Null
-          if (-not (Test-Path "$userDir\NTUSER.DAT")) {
-            Copy-Item $defaultTemp "$userDir\NTUSER.DAT" -Force
-          }
-          if (Test-Path "$userDir\NTUSER.DAT") {
-            Copy-Item "$userDir\NTUSER.DAT" $userHiveTemp -Force
-            $loadUser = reg load "HKU\mastertech_hive" "$userHiveTemp" 2>&1
-            Write-Host "Load ${u}: $loadUser"
-            $uTheme = "Registry::HKEY_USERS\mastertech_hive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-            if (-not (Test-Path $uTheme)) { New-Item -Path $uTheme -Force | Out-Null }
-            Set-ItemProperty -Path $uTheme -Name 'EnableTransparency' -Value 0 -Force
-            Set-ItemProperty -Path $uTheme -Name 'ColorPrevalence' -Value 0 -Force
-            Set-ItemProperty -Path $uTheme -Name 'AppsUseLightTheme' -Value 0 -Force
-            Set-ItemProperty -Path $uTheme -Name 'SystemUsesLightTheme' -Value 0 -Force
-            $uDesk = "Registry::HKEY_USERS\mastertech_hive\Control Panel\Desktop"
-            Set-ItemProperty -Path $uDesk -Name 'Wallpaper' -Value $wallpaperFile -Force
-            Set-ItemProperty -Path $uDesk -Name 'TileWallpaper' -Value 0 -Force
-            Set-ItemProperty -Path $uDesk -Name 'WallpaperStyle' -Value 10 -Force
-            $uAdv = "Registry::HKEY_USERS\mastertech_hive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-            if (-not (Test-Path $uAdv)) { New-Item -Path $uAdv -Force | Out-Null }
-            Set-ItemProperty -Path $uAdv -Name 'TaskbarSmallIcons' -Value 1 -Force
-            Set-ItemProperty -Path $uAdv -Name 'TaskbarAnimations' -Value 0 -Force
-            Set-ItemProperty -Path $uAdv -Name 'IconsOnly' -Value 1 -Force
-            $unloadUser = reg unload "HKU\mastertech_hive" 2>&1
-            Write-Host "Unload ${u}: $unloadUser"
-            Copy-Item $userHiveTemp "$userDir\NTUSER.DAT" -Force
-            Write-Host "$u profile: dark mode + wallpaper applied"
-          } else {
-            Write-Host "$u NTUSER.DAT not available"
-          }
-          Write-Host "=== ALSO SET VIA RUNONCE (backup method) ==="
-          $runOncePath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
-          $psScript = "C:\Users\Public\apply-darkmode.ps1"
-          $psContent = @"
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'SystemUsesLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'Wallpaper' -Value '$wallpaperFile' -Force
-          Set-ItemProperty -Path 'Registry::HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'WallpaperStyle' -Value 10 -Force
-          "@
-          $psContent | Out-File $psScript -Encoding UTF8 -Force
-          New-ItemProperty -Path $runOncePath -Name 'ApplyDarkMode' -Value "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$psScript`"" -PropertyType String -Force | Out-Null
-          Write-Host "RunOnce entry created for first login"
+
+          Write-Host "=== SAVE DARK MODE + WALLPAPER SCRIPT TO DESKTOP ==="
+          $desktop = "$env:SystemDrive\Users\Public\Desktop"
+          $darkModeScript = @"
+# ============================================
+# DARK MODE + MEGA WALLPAPER SETUP
+# ============================================
+`$ErrorActionPreference = "Stop"
+`$downloadDir = "`$env:USERPROFILE\Downloads\Wallpaper"
+
+Write-Host "DARK MODE ENABLE..." -ForegroundColor Yellow
+try {
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    `$personalizePath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+    `$dwmPath = "HKCU:\SOFTWARE\Microsoft\Windows\DWM"
+    @(`$personalizePath, `$dwmPath) | ForEach-Object {
+        if (!(Test-Path `$_)) { New-Item -Path `$_ -Force | Out-Null }
+    }
+    Set-ItemProperty -Path `$personalizePath -Name "AppsUseLightTheme" -Value 0 -Type DWord
+    Set-ItemProperty -Path `$personalizePath -Name "SystemUsesLightTheme" -Value 0 -Type DWord
+    Set-ItemProperty -Path `$dwmPath -Name "ColorizationColor" -Value 0xc4000000 -Type DWord
+    Set-ItemProperty -Path `$dwmPath -Name "AccentColor" -Value 0xc40078d4 -Type DWord
+    Start-Process explorer.exe
+    Start-Sleep -Seconds 3
+    Write-Host "[OK] Dark Mode ON!" -ForegroundColor Green
+} catch {
+    Write-Host "[ERROR] `$_" -ForegroundColor Red
+}
+
+Write-Host "DOWNLOAD WALLPAPER FROM MEGA..." -ForegroundColor Yellow
+if (!(Test-Path `$downloadDir)) {
+    New-Item -ItemType Directory -Path `$downloadDir -Force | Out-Null
+}
+`$megaUrl = "https://mega.nz/file/SlZmQTbD#4swUe2t-vB_jHNEW1hSubFGsUre3B6bmUFurESgXhcg"
+`$pyScript = @'
+import os, sys
+try:
+    from mega import Mega
+    from PIL import Image
+    mega = Mega()
+    m = mega.login()
+    url = sys.argv[1]
+    output_dir = sys.argv[2]
+    print(f"Downloading from Mega...")
+    file = m.find(url.split("/")[-1])
+    filepath = m.download(file, output_dir)
+    print(f"Downloaded: {filepath}")
+    img = Image.open(filepath)
+    if img.mode in ('RGBA', 'P', 'LA'):
+        img = img.convert('RGB')
+    jpg_path = os.path.join(output_dir, 'wallpaper.jpg')
+    img.save(jpg_path, 'JPEG', quality=95)
+    print(f"Converted: {jpg_path}")
+    print(jpg_path)
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+'@
+`$pyScript | Out-File -FilePath "`$env:TEMP\mega_dl.py" -Encoding UTF8
+`$result = python "`$env:TEMP\mega_dl.py" `$megaUrl `$downloadDir 2>&1
+`$imagePath = `$null
+`$lastLine = (`$result | Select-Object -Last 1).ToString().Trim()
+if (Test-Path `$lastLine) { `$imagePath = `$lastLine }
+else {
+    `$img = Get-ChildItem -Path `$downloadDir -Include *.jpg,*.jpeg,*.png -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (`$img) { `$imagePath = `$img.FullName }
+}
+
+Write-Host "SET WALLPAPER..." -ForegroundColor Yellow
+if (`$imagePath -and (Test-Path `$imagePath)) {
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value `$imagePath
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0"
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "2"
+    RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters ,1 ,True
+    Write-Host "[OK] Wallpaper SET!" -ForegroundColor Green
+} else {
+    Write-Host "[ERROR] Image not found!" -ForegroundColor Red
+}
+Write-Host "COMPLETE!" -ForegroundColor Cyan
+"@
+          $darkModeScript | Out-File "$desktop\SETUP-DARKMODE-WALLPAPER.ps1" -Encoding UTF8 -Force
+          Write-Host "Script saved to: $desktop\SETUP-DARKMODE-WALLPAPER.ps1"
           Write-Host "=== DISABLE HEAVY SERVICES ==="
           $servicesToDisable = @('SysMain','DiagTrack','diagnosticshub.standardcollector.service','dmwappushservice','MapsBroker','lfsvc','SharedAccess','RemoteRegistry','XblAuthManager','XblGameSave','XboxGipSvc','wuauserv','BITS')
           foreach ($svc in $servicesToDisable) {
