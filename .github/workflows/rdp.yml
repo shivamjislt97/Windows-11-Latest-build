@@ -321,10 +321,13 @@ jobs:
           $desktop = "$env:SystemDrive\Users\Public\Desktop"
           $dmLines = @(
             '# ============================================',
-            '# DARK MODE + MEGA WALLPAPER SETUP',
+            '# DARK MODE + WALLPAPER SETUP',
             '# ============================================',
             '$ErrorActionPreference = "Stop"',
             '$downloadDir = "$env:USERPROFILE\Downloads\Wallpaper"',
+            'if (!(Test-Path $downloadDir)) {',
+            '    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null',
+            '}',
             '',
             'Write-Host "DARK MODE ENABLE..." -ForegroundColor Yellow',
             'try {',
@@ -346,20 +349,14 @@ jobs:
             '    Write-Host "[ERROR] $_" -ForegroundColor Red',
             '}',
             '',
-            'Write-Host "DOWNLOAD WALLPAPER FROM MEGA..." -ForegroundColor Yellow',
-            'if (!(Test-Path $downloadDir)) {',
-            '    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null',
-            '}',
-            '$megaUrl = "https://mega.nz/file/SlZmQTbD#4swUe2t-vB_jHNEW1hSubFGsUre3B6bmUFurESgXhcg"',
-            '$megaScript = "import os, sys; from mega import Mega; from PIL import Image; mega = Mega(); m = mega.login(); url = sys.argv[1]; output_dir = sys.argv[2]; print(''Downloading from Mega...''); file = m.find(url.split(''/'')[-1]); filepath = m.download(file, output_dir); print(f''Downloaded: {filepath}''); img = Image.open(filepath); img = img.convert(''RGB'') if img.mode in [''RGBA'', ''P'', ''LA''] else img; jpg_path = os.path.join(output_dir, ''wallpaper.jpg''); img.save(jpg_path, ''JPEG'', quality=95); print(f''Converted: {jpg_path}''); print(jpg_path)"',
-            '$megaScript | Out-File -FilePath "$env:TEMP\mega_dl.py" -Encoding UTF8',
-            '$result = python "$env:TEMP\mega_dl.py" $megaUrl $downloadDir 2>&1',
-            '$imagePath = $null',
-            '$lastLine = ($result | Select-Object -Last 1).ToString().Trim()',
-            'if (Test-Path $lastLine) { $imagePath = $lastLine }',
-            'else {',
-            '    $img = Get-ChildItem -Path $downloadDir -Include *.jpg,*.jpeg,*.png -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1',
-            '    if ($img) { $imagePath = $img.FullName }',
+            'Write-Host "DOWNLOAD WALLPAPER FROM GITHUB..." -ForegroundColor Yellow',
+            '$imageUrl = "https://github.com/shivamjislt97/Windows-11-Latest-build/releases/download/wallpaper-v1/Windows%2011.png"',
+            '$imagePath = "$downloadDir\Windows11.png"',
+            'try {',
+            '    Invoke-WebRequest -Uri $imageUrl -OutFile $imagePath -TimeoutSec 30',
+            '    Write-Host "[OK] Downloaded wallpaper" -ForegroundColor Green',
+            '} catch {',
+            '    Write-Host "[ERROR] Download failed: $_" -ForegroundColor Red',
             '}',
             '',
             'Write-Host "SET WALLPAPER..." -ForegroundColor Yellow',
@@ -583,10 +580,7 @@ jobs:
           Set-ItemProperty -Path $menuDelay -Name 'UserPreferencesMask' -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)) -Force
           Write-Host "  [OK] Visual effects minimized"
 
-          Write-Host "[7/12] Disable Desktop Wallpaper & Theme..."
-          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value '' -Force
-          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
-          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '0' -Force
+          Write-Host "[7/12] Set Theme (Dark + No Transparency)..."
           $themePath = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize'
           if (-not (Test-Path $themePath)) { New-Item -Path $themePath -Force | Out-Null }
           Set-ItemProperty -Path $themePath -Name 'AppsUseLightTheme' -Value 0 -Force
@@ -597,7 +591,7 @@ jobs:
           Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
           Set-ItemProperty -Path $dwmPath -Name 'EnableAeroPeek' -Value 0 -Force
           Set-ItemProperty -Path $dwmPath -Name 'AlwaysHibernateThumbnails' -Value 0 -Force
-          Write-Host "  [OK] Wallpaper OFF, Theme Dark, Transparency OFF"
+          Write-Host "  [OK] Theme Dark, Transparency OFF"
 
           Write-Host "[8/12] RDP Low Color + No Compression..."
           $rdpTcp = 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
