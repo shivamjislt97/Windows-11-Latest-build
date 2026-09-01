@@ -672,14 +672,16 @@ jobs:
           Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'TileWallpaper' -Value '0' -Force
           Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '2' -Force
 
-          Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class Wallpaper {
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-}
-"@
+          $wpLines = @(
+            'using System;',
+            'using System.Runtime.InteropServices;',
+            'public class Wallpaper {',
+            '    [DllImport("user32.dll", CharSet = CharSet.Auto)]',
+            '    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);',
+            '}'
+          )
+          $wpCode = $wpLines -join "`n"
+          Add-Type -TypeDefinition $wpCode -ErrorAction SilentlyContinue
           [Wallpaper]::SystemParametersInfo(0x0014, 0, $finalWp, 0x0001 -bor 0x0002 -bor 0x0100) | Out-Null
           Write-Host "  [OK] Wallpaper SET via SystemParametersInfo"
 
