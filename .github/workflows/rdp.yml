@@ -698,6 +698,111 @@ jobs:
             }
           }
           Write-Host "  [OK] Dark Mode ON for ALL USERS"
+          # --- Diagnostic: verify hives ---
+          Write-Host "[VERIFY] Checking dark mode values..."
+          try {
+            $v1 = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ErrorAction SilentlyContinue
+            Write-Host "  HKCU AppsUseLightTheme=$($v1.AppsUseLightTheme) SystemUsesLightTheme=$($v1.SystemUsesLightTheme)"
+          } catch { Write-Host "  [WARN] HKCU verify failed: $_" }
+          try {
+            $v2 = Get-ItemProperty -Path "Registry::HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ErrorAction SilentlyContinue
+            Write-Host "  HKU\.DEFAULT AppsUseLightTheme=$($v2.AppsUseLightTheme) SystemUsesLightTheme=$($v2.SystemUsesLightTheme)"
+          } catch {}
+          try {
+            if(Test-Path "C:\Users\Default\NTUSER.DAT"){
+              reg load "HKLM\DefaultUserVerify" "C:\Users\Default\NTUSER.DAT" 2>$null
+              $v3 = Get-ItemProperty -Path "Registry::HKLM\DefaultUserVerify\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ErrorAction SilentlyContinue
+              Write-Host "  Default NTUSER AppsUseLightTheme=$($v3.AppsUseLightTheme) SystemUsesLightTheme=$($v3.SystemUsesLightTheme)"
+              reg unload "HKLM\DefaultUserVerify" 2>$null
+            }
+          } catch { reg unload "HKLM\DefaultUserVerify" 2>$null }
+          if (Test-Path "C:\Users\mastertech\NTUSER.DAT") {
+            try {
+              reg load "HKLM\MastertechVerify" "C:\Users\mastertech\NTUSER.DAT" 2>$null
+              $v4 = Get-ItemProperty -Path "Registry::HKLM\MastertechVerify\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ErrorAction SilentlyContinue
+              Write-Host "  mastertech NTUSER AppsUseLightTheme=$($v4.AppsUseLightTheme) SystemUsesLightTheme=$($v4.SystemUsesLightTheme)"
+              reg unload "HKLM\MastertechVerify" 2>$null
+            } catch { reg unload "HKLM\MastertechVerify" 2>$null }
+          } else {
+            Write-Host "  mastertech NTUSER not yet exists - will rely on Default + logon fix"
+          }
+          # --- Auto-fix: Ensure dark mode on EVERY logon (covers first RDP logon) ---
+          Write-Host "[+] Creating logon auto-fix for dark mode..."
+          $fixLines = @(
+            '$ErrorActionPreference=''SilentlyContinue''',
+            '$personalizePath=''HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize''',
+            '$dwmPath=''HKCU:\SOFTWARE\Microsoft\Windows\DWM''',
+            'if(!(Test-Path $personalizePath)){New-Item -Path $personalizePath -Force|Out-Null}',
+            'if(!(Test-Path $dwmPath)){New-Item -Path $dwmPath -Force|Out-Null}',
+            'Set-ItemProperty -Path $personalizePath -Name ''AppsUseLightTheme'' -Value 0 -Type DWord -Force',
+            'Set-ItemProperty -Path $personalizePath -Name ''SystemUsesLightTheme'' -Value 0 -Type DWord -Force',
+            'Set-ItemProperty -Path $dwmPath -Name ''EnableTransparency'' -Value 0 -Type DWord -Force',
+            'Set-ItemProperty -Path $dwmPath -Name ''ColorizationColor'' -Value 0xc4000000 -Type DWord -Force',
+            'Set-ItemProperty -Path $dwmPath -Name ''AccentColor'' -Value 0xc40078d4 -Type DWord -Force',
+            'Set-ItemProperty -Path $dwmPath -Name ''Composition'' -Value 0 -Type DWord -Force',
+            'try{Add-Type -MemberDefinition ''[DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd,int msg,int wParam,string lParam,int flags,int timeout,out IntPtr lpdwResult);'' -Name NativeMethods -Namespace Win32 -ErrorAction SilentlyContinue;[Win32.NativeMethods]::SendMessageTimeout([IntPtr]0xffff,0x001A,0,''ImmersiveColorSet'',2,5000,[ref][IntPtr]::Zero)|Out-Null}catch{}',
+            'Add-Content -Path ''C:\Users\Public\FixDarkMode.log'' -Value "$(Get-Date) DarkMode applied for $env:USERNAME" -ErrorAction SilentlyContinue'
+          )
+          $fixPath = "C:\Users\Public\FixDarkMode.ps1"
+          $fixLines | Out-File $fixPath -Encoding UTF8 -Force
+          Write-Host "  [OK] Fix script created at $fixPath"
+          # 1) Startup folder for ALL users
+          try {
+            $startupAll = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+            if(!(Test-Path $startupAll)){New-Item -Path $startupAll -ItemType Directory -Force|Out-Null}
+            Copy-Item $fixPath "$startupAll\FixDarkMode.ps1" -Force -ErrorAction SilentlyContinue
+            $batPath = "$startupAll\FixDarkMode.cmd"
+            '@echo off' | Out-File $batPath -Encoding ASCII -Force
+            'powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"' | Out-File $batPath -Append -Encoding ASCII
+            Write-Host "  [OK] Startup folder fix created"
+          } catch { Write-Host "  [WARN] Startup fix failed: $_" }
+          # 2) Startup for Default user (future users incl. mastertech first logon)
+          try {
+            $defStartup = "C:\Users\Default\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+            if(!(Test-Path $defStartup)){New-Item -Path $defStartup -ItemType Directory -Force|Out-Null}
+            Copy-Item $fixPath "$defStartup\FixDarkMode.ps1" -Force -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Default user Startup fix created"
+          } catch { Write-Host "  [WARN] Default Startup failed: $_" }
+          # 3) Active Setup (runs once per user at logon)
+          try {
+            $activePath = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+            if(!(Test-Path $activePath)){New-Item -Path $activePath -Force|Out-Null}
+            Set-ItemProperty -Path $activePath -Name "(Default)" -Value "DarkMode Fix" -Force
+            Set-ItemProperty -Path $activePath -Name "StubPath" -Value 'powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"' -Force
+            Set-ItemProperty -Path $activePath -Name "Version" -Value "1,0,0,0" -Force
+            Write-Host "  [OK] Active Setup fix created"
+          } catch { Write-Host "  [WARN] Active Setup failed: $_" }
+          # 4) HKLM Run (runs for every user at logon)
+          try {
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "FixDarkMode" -Value 'powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"' -Force
+            Write-Host "  [OK] HKLM Run fix created"
+          } catch { Write-Host "  [WARN] HKLM Run failed: $_" }
+          # 5) RunOnce for mastertech and Default hive (ensures first logon)
+          try {
+            if(Test-Path "C:\Users\mastertech\NTUSER.DAT"){
+              reg load "HKLM\MastertechRunOnce" "C:\Users\mastertech\NTUSER.DAT" 2>$null
+              $roPath = "Registry::HKLM\MastertechRunOnce\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+              if(!(Test-Path $roPath)){New-Item -Path $roPath -Force|Out-Null}
+              Set-ItemProperty -Path $roPath -Name "FixDarkMode" -Value 'powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"' -Force
+              reg unload "HKLM\MastertechRunOnce" 2>$null
+              Write-Host "  [OK] mastertech RunOnce created"
+            }
+            reg load "HKLM\DefaultRunOnce" "C:\Users\Default\NTUSER.DAT" 2>$null
+            $roPath2 = "Registry::HKLM\DefaultRunOnce\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+            if(!(Test-Path $roPath2)){New-Item -Path $roPath2 -Force|Out-Null}
+            Set-ItemProperty -Path $roPath2 -Name "FixDarkMode" -Value 'powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"' -Force
+            reg unload "HKLM\DefaultRunOnce" 2>$null
+            Write-Host "  [OK] Default RunOnce created"
+          } catch { Write-Host "  [WARN] RunOnce failed: $_"; reg unload "HKLM\MastertechRunOnce" 2>$null; reg unload "HKLM\DefaultRunOnce" 2>$null }
+          # 6) Scheduled Task for SYSTEM at logon (most reliable)
+          try {
+            $taskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument '-ExecutionPolicy Bypass -NoProfile -File "C:\Users\Public\FixDarkMode.ps1"'
+            $taskTrigger = New-ScheduledTaskTrigger -AtLogOn
+            $taskPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+            Register-ScheduledTask -TaskName "FixDarkMode" -Action $taskAction -Trigger $taskTrigger -Principal $taskPrincipal -Force | Out-Null
+            Write-Host "  [OK] Scheduled Task FixDarkMode created"
+          } catch { Write-Host "  [WARN] Scheduled Task failed: $_" }
+          Write-Host "  [OK] All logon auto-fix mechanisms created"
 
           Write-Host "[+] Set Wallpaper for ALL USERS..."
           $finalWp = "C:\Windows\Web\Wallpaper\ThemeA\img20.jpg"
