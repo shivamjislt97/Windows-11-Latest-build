@@ -842,20 +842,24 @@ jobs:
             reg unload "HKLM\MastertechUser" 2>$null
             Write-Host "  [OK] mastertech NTUSER.DAT wallpaper set"
           } else {
-            Write-Host "  [WARN] NTUSER.DAT not found, copying default profile..."
-            $defaultProfile = "C:\Users\Default"
-            if (!(Test-Path $defaultProfile)) { New-Item -ItemType Directory -Path $defaultProfile -Force | Out-Null }
-            $defDeskPath = "$defaultProfile\NTUSER.DAT"
-            if (Test-Path "C:\Windows\System32\Config\Default") {
-              Copy-Item "C:\Windows\System32\Config\Default" $defDeskPath -Force -ErrorAction SilentlyContinue
-              reg load "HKLM\DefaultUser" $defDeskPath 2>$null
-              $dPath = "Registry::HKLM\DefaultUser\Control Panel\Desktop"
-              if (-not (Test-Path $dPath)) { New-Item -Path $dPath -Force | Out-Null }
-              Set-ItemProperty -Path $dPath -Name 'WallPaper' -Value $finalWp -Force
-              Set-ItemProperty -Path $dPath -Name 'TileWallpaper' -Value '0' -Force
-              Set-ItemProperty -Path $dPath -Name 'WallpaperStyle' -Value '2' -Force
-              reg unload "HKLM\DefaultUser" 2>$null
-              Write-Host "  [OK] Default profile wallpaper set"
+            Write-Host "  [INFO] mastertech NTUSER.DAT not found - setting Default profile wallpaper (will apply on first logon)..."
+            $defDeskPath = "C:\Users\Default\NTUSER.DAT"
+            if (Test-Path $defDeskPath) {
+              try {
+                reg load "HKLM\DefaultUser" $defDeskPath 2>$null
+                $dPath = "Registry::HKLM\DefaultUser\Control Panel\Desktop"
+                if (-not (Test-Path $dPath)) { New-Item -Path $dPath -Force | Out-Null }
+                Set-ItemProperty -Path $dPath -Name 'WallPaper' -Value $finalWp -Force
+                Set-ItemProperty -Path $dPath -Name 'TileWallpaper' -Value '0' -Force
+                Set-ItemProperty -Path $dPath -Name 'WallpaperStyle' -Value '2' -Force
+                reg unload "HKLM\DefaultUser" 2>$null
+                Write-Host "  [OK] Default profile wallpaper set"
+              } catch {
+                Write-Host "  [WARN] Default wallpaper failed: $_"
+                reg unload "HKLM\DefaultUser" 2>$null
+              }
+            } else {
+              Write-Host "  [WARN] Default NTUSER.DAT not found"
             }
           }
 
