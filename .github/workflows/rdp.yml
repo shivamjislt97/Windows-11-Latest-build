@@ -642,18 +642,62 @@ jobs:
           New-ItemProperty -Path $diagPath -Name 'AllowTelemetry' -Value 0 -PropertyType DWord -Force
           Write-Host "  [OK] GameDVR + Telemetry OFF"
 
-          Write-Host "[+] Enable Dark Mode..."
-          $personalizePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-          $dwmPath = 'HKCU:\SOFTWARE\Microsoft\Windows\DWM'
-          if (-not (Test-Path $personalizePath)) { New-Item -Path $personalizePath -Force | Out-Null }
-          if (-not (Test-Path $dwmPath)) { New-Item -Path $dwmPath -Force | Out-Null }
-          Set-ItemProperty -Path $personalizePath -Name 'AppsUseLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path $personalizePath -Name 'SystemUsesLightTheme' -Value 0 -Force
-          Set-ItemProperty -Path $dwmPath -Name 'ColorizationColor' -Value 0xc4000000 -Force
-          Set-ItemProperty -Path $dwmPath -Name 'AccentColor' -Value 0xc40078d4 -Force
-          Set-ItemProperty -Path $dwmPath -Name 'EnableTransparency' -Value 0 -Force
-          Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
-          Write-Host "  [OK] Dark Mode ON"
+          Write-Host "[+] Enable Dark Mode (ALL USERS - Fix for mastertech)..."
+          function Set-DarkModeForHive {
+            param([string]$BasePath)
+            $personalizePath = "$BasePath\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            $dwmPath = "$BasePath\SOFTWARE\Microsoft\Windows\DWM"
+            if (-not (Test-Path $personalizePath)) { New-Item -Path $personalizePath -Force | Out-Null }
+            if (-not (Test-Path $dwmPath)) { New-Item -Path $dwmPath -Force | Out-Null }
+            Set-ItemProperty -Path $personalizePath -Name 'AppsUseLightTheme' -Value 0 -Force
+            Set-ItemProperty -Path $personalizePath -Name 'SystemUsesLightTheme' -Value 0 -Force
+            Set-ItemProperty -Path $dwmPath -Name 'EnableTransparency' -Value 0 -Force
+            Set-ItemProperty -Path $dwmPath -Name 'ColorizationColor' -Value 0xc4000000 -Force
+            Set-ItemProperty -Path $dwmPath -Name 'AccentColor' -Value 0xc40078d4 -Force
+            Set-ItemProperty -Path $dwmPath -Name 'Composition' -Value 0 -Force
+          }
+          # 1) Current user HKCU (runneradmin)
+          try {
+            Set-DarkModeForHive -BasePath "HKCU:"
+            Write-Host "  [OK] Dark Mode for HKCU (runneradmin)"
+          } catch { Write-Host "  [WARN] HKCU dark mode failed: $_" }
+          # 2) Default User (HKEY_USERS\.DEFAULT) - logon screen + template
+          try {
+            $defaultReg = "Registry::HKEY_USERS\.DEFAULT"
+            if (Test-Path $defaultReg) {
+              Set-DarkModeForHive -BasePath $defaultReg
+              Write-Host "  [OK] Dark Mode for HKU\.DEFAULT"
+            }
+          } catch { Write-Host "  [WARN] HKU\.DEFAULT dark mode failed: $_" }
+          # 3) mastertech user - load NTUSER.DAT
+          $ntuser = "C:\Users\mastertech\NTUSER.DAT"
+          if (Test-Path $ntuser) {
+            try {
+              reg load "HKLM\MastertechUser" $ntuser 2>$null
+              Set-DarkModeForHive -BasePath "Registry::HKLM\MastertechUser"
+              reg unload "HKLM\MastertechUser" 2>$null
+              Write-Host "  [OK] Dark Mode for mastertech NTUSER.DAT"
+            } catch {
+              Write-Host "  [WARN] mastertech hive failed: $_"
+              reg unload "HKLM\MastertechUser" 2>$null
+            }
+          } else {
+            Write-Host "  [INFO] mastertech NTUSER.DAT not found (profile not yet created) - will rely on Default profile"
+          }
+          # 4) Default profile C:\Users\Default\NTUSER.DAT - ensures future users incl. mastertech first logon get dark
+          $defaultNtuser = "C:\Users\Default\NTUSER.DAT"
+          if (Test-Path $defaultNtuser) {
+            try {
+              reg load "HKLM\DefaultUser" $defaultNtuser 2>$null
+              Set-DarkModeForHive -BasePath "Registry::HKLM\DefaultUser"
+              reg unload "HKLM\DefaultUser" 2>$null
+              Write-Host "  [OK] Dark Mode for Default profile (future users)"
+            } catch {
+              Write-Host "  [WARN] Default profile dark mode failed: $_"
+              reg unload "HKLM\DefaultUser" 2>$null
+            }
+          }
+          Write-Host "  [OK] Dark Mode ON for ALL USERS"
 
           Write-Host "[+] Set Wallpaper for ALL USERS..."
           $finalWp = "C:\Windows\Web\Wallpaper\ThemeA\img20.jpg"
